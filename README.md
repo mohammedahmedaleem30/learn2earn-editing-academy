@@ -1,71 +1,47 @@
-# Learn2Earn Affiliate Opportunity Vault
+# Learn2Earn Editing Academy
 
-A premium Vite + React + TypeScript dashboard for curated Learn2Earn affiliate opportunities, commission blueprints, and earnings projections.
+A premium, beginner-friendly editing resource platform built as a static interactive vault. Users can choose a content niche and instantly view hooks, script frameworks, B-roll ideas, editing software, AI tools for editors, and client acquisition templates.
 
 ## Tech Stack
 
 - React
-- TypeScript
 - Vite
 - Tailwind CSS
-- Framer Motion
 - Lucide React icons
+- Local JavaScript data
 
-## Local Setup
-
-Install dependencies:
+## Install
 
 ```bash
 npm install
 ```
 
-Start the development server:
+## Run Locally
 
 ```bash
 npm run dev
 ```
 
-Open the local preview:
+Vite will print the local development URL in your terminal.
 
-```text
-http://localhost:5173
-```
-
-Build for production:
+## Build
 
 ```bash
 npm run build
 ```
 
-Preview the production build locally:
+The production build is generated in the `dist` folder.
+
+## Preview Production Build
 
 ```bash
 npm run preview
 ```
 
-## Admin-Editable Vault Data
+## Deployment
 
-Offer data and unlock-system settings are currently hardcoded in:
+This project is ready for Vercel using the default Vite settings:
 
-```text
-src/App.tsx
-```
-
-Look for the admin comments near the top of the file to update:
-
-- Affiliate offers
-- Current vault funds
-- Next milestone amount
-- Next unlock label
-- Update cadence
-- Upcoming opportunity categories
-
-## Vercel Deployment
-
-Recommended Vercel settings:
-
-- Framework Preset: `Vite`
 - Build Command: `npm run build`
 - Output Directory: `dist`
 - Install Command: `npm install`
-
