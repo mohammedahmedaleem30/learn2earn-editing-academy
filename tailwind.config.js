@@ -4,25 +4,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        vault: {
-          black: "#050405",
-          charcoal: "#0d0b0d",
-          panel: "#141014",
-          cream: "#f7efe2",
-          muted: "#b8aa99",
-          magenta: "#ff2fb3",
-          rose: "#ff5a8a",
-          gold: "#d6a84f",
-          bronze: "#9a6531",
+        crimson: {
+          50: "#fff1f3",
+          100: "#ffe3e8",
+          200: "#ffcbd4",
+          300: "#ff9bab",
+          400: "#ff5f78",
+          500: "#dc143c",
+          600: "#b11226",
+          700: "#920f20",
+          800: "#7a1020",
+          900: "#681321",
+          950: "#3b060e",
         },
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        glow: "0 0 42px rgba(255, 47, 179, 0.26)",
-        gold: "0 0 34px rgba(214, 168, 79, 0.2)",
-        panel: "0 20px 70px rgba(0, 0, 0, 0.45)",
+        "red-glow": "0 0 34px rgba(220, 20, 60, 0.28)",
+        "red-glow-strong": "0 0 54px rgba(220, 20, 60, 0.42)",
+        panel: "0 24px 80px rgba(0, 0, 0, 0.55)",
       },
       animation: {
         "fade-up": "fadeUp 520ms ease both",
