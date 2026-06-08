@@ -9,7 +9,7 @@ import {
   Scissors,
   Send,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CopyButton from "./components/CopyButton";
 import Hero from "./components/Hero";
 import NicheSelector from "./components/NicheSelector";
@@ -30,11 +30,33 @@ export default function App() {
   const [selectedNicheId, setSelectedNicheId] = useState("business");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [copiedKey, setCopiedKey] = useState("");
+  const [theme, setTheme] = useState(() => {
+    const documentTheme = typeof document !== "undefined" ? document.documentElement.dataset.theme : "";
+
+    if (documentTheme === "light" || documentTheme === "dark") {
+      return documentTheme;
+    }
+
+    if (typeof window !== "undefined") {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+
+    return "dark";
+  });
 
   const selectedNiche = useMemo(
     () => niches.find((niche) => niche.id === selectedNicheId) ?? niches[0],
     [selectedNicheId],
   );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("learn2earn-theme", theme);
+    } catch {
+      // Keep the visible toggle working even if storage is unavailable in an embedded review context.
+    }
+  }, [theme]);
 
   const showCopied = (key) => {
     setCopiedKey(key);
@@ -48,6 +70,10 @@ export default function App() {
 
   const scrollToNiches = () => {
     document.getElementById("niches")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const toggleTheme = () => {
+    setTheme((current) => (current === "dark" ? "light" : "dark"));
   };
 
   return (
@@ -69,7 +95,7 @@ export default function App() {
 
         <div className="min-w-0 flex-1 px-4 pb-10 pt-20 sm:px-6 lg:px-8 lg:pt-6">
           <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
-            <Hero stats={academyStats} onStart={scrollToNiches} />
+            <Hero stats={academyStats} onStart={scrollToNiches} theme={theme} onToggleTheme={toggleTheme} />
 
             <NicheSelector niches={niches} selectedNicheId={selectedNicheId} onSelectNiche={selectNiche} />
 

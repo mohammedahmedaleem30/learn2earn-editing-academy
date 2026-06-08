@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  :root[data-theme="light"] {
     color-scheme: light;
     --color-bg: #fff8f9;
     --color-bg-rgb: 255 248 249;
@@ -23,6 +24,12 @@
     --color-accent-softer: rgba(220, 20, 60, 0.055);
     --color-accent-text: #8b0f22;
     --color-on-accent: #ffffff;
+    --color-button: #ffffff;
+    --color-button-hover: #fff1f4;
+    --color-input: #ffffff;
+    --color-input-border: rgba(44, 21, 27, 0.16);
+    --color-input-text: #181113;
+    --color-input-placeholder: #86777d;
     --color-gold-soft: rgba(201, 163, 106, 0.16);
     --shadow-panel: 0 24px 70px rgba(62, 16, 25, 0.14);
     --shadow-red: 0 0 34px rgba(220, 20, 60, 0.2);
@@ -55,6 +62,12 @@
       --color-accent-softer: rgba(220, 20, 60, 0.08);
       --color-accent-text: #ffcbd4;
       --color-on-accent: #ffffff;
+      --color-button: #171214;
+      --color-button-hover: #21181b;
+      --color-input: #0d0d0d;
+      --color-input-border: rgba(255, 255, 255, 0.14);
+      --color-input-text: #ffffff;
+      --color-input-placeholder: #71717a;
       --color-gold-soft: rgba(201, 163, 106, 0.08);
       --shadow-panel: 0 24px 80px rgba(0, 0, 0, 0.55);
       --shadow-red: 0 0 34px rgba(220, 20, 60, 0.28);
@@ -65,6 +78,43 @@
         radial-gradient(circle at 82% 12%, rgba(177, 18, 38, 0.14), transparent 24rem),
         linear-gradient(135deg, #070707 0%, #0c0b0b 47%, #120608 100%);
     }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --color-bg: #070707;
+    --color-bg-rgb: 7 7 7;
+    --color-surface: #111111;
+    --color-surface-rgb: 17 17 17;
+    --color-surface-raised: #171214;
+    --color-surface-muted: #0d0d0d;
+    --color-text: #ffffff;
+    --color-text-muted: #a1a1aa;
+    --color-text-subtle: #71717a;
+    --color-border: rgba(255, 255, 255, 0.1);
+    --color-border-strong: rgba(255, 155, 171, 0.28);
+    --color-overlay: rgba(0, 0, 0, 0.7);
+    --color-accent: #dc143c;
+    --color-accent-strong: #ff5f78;
+    --color-accent-soft: rgba(220, 20, 60, 0.15);
+    --color-accent-softer: rgba(220, 20, 60, 0.08);
+    --color-accent-text: #ffcbd4;
+    --color-on-accent: #ffffff;
+    --color-button: #171214;
+    --color-button-hover: #21181b;
+    --color-input: #0d0d0d;
+    --color-input-border: rgba(255, 255, 255, 0.14);
+    --color-input-text: #ffffff;
+    --color-input-placeholder: #71717a;
+    --color-gold-soft: rgba(201, 163, 106, 0.08);
+    --shadow-panel: 0 24px 80px rgba(0, 0, 0, 0.55);
+    --shadow-red: 0 0 34px rgba(220, 20, 60, 0.28);
+    --shadow-red-strong: 0 0 54px rgba(220, 20, 60, 0.42);
+    --noise-line: rgba(255, 255, 255, 0.025);
+    --body-bg:
+      radial-gradient(circle at 18% 8%, rgba(220, 20, 60, 0.16), transparent 28rem),
+      radial-gradient(circle at 82% 12%, rgba(177, 18, 38, 0.14), transparent 24rem),
+      linear-gradient(135deg, #070707 0%, #0c0b0b 47%, #120608 100%);
   }
 
   * {
@@ -87,6 +137,19 @@
   button,
   input {
     font: inherit;
+  }
+
+  input,
+  textarea,
+  select {
+    border-color: var(--color-input-border);
+    color: var(--color-input-text);
+    background: var(--color-input);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-input-placeholder);
   }
 
   ::selection {

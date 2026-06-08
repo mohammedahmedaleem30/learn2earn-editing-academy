@@ -1,16 +1,29 @@
-import { ArrowRight, Crown, PlayCircle } from "lucide-react";
+import { ArrowRight, Crown, Moon, PlayCircle, Sun } from "lucide-react";
 
-export default function Hero({ stats, onStart }) {
+export default function Hero({ stats, onStart, theme, onToggleTheme }) {
+  const isDark = theme === "dark";
+
   return (
     <section className="relative overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-panel sm:p-8 lg:p-10">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,var(--color-accent-soft),transparent_34rem),linear-gradient(135deg,var(--color-accent-softer),transparent_46%)]" />
       <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-[var(--color-accent-soft)] blur-3xl" />
+      <button
+        type="button"
+        onClick={onToggleTheme}
+        className="absolute right-4 top-4 z-10 inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-button)] px-3 text-sm font-semibold text-[var(--color-text)] shadow-panel transition hover:border-[var(--color-border-strong)] hover:bg-[var(--color-button-hover)] sm:right-6 sm:top-6"
+        aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
+      >
+        {isDark ? <Moon className="h-4 w-4 text-[var(--color-accent-text)]" /> : <Sun className="h-4 w-4 text-[var(--color-accent-text)]" />}
+        {isDark ? "Dark" : "Light"}
+      </button>
 
       <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-end">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-strong)] bg-[var(--color-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--color-accent-text)]">
-            <Crown className="h-3.5 w-3.5" />
-            Premium beginner vault
+          <div className="flex flex-wrap items-center justify-between gap-3 pr-24 sm:pr-28">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-strong)] bg-[var(--color-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--color-accent-text)]">
+              <Crown className="h-3.5 w-3.5" />
+              Premium beginner vault
+            </div>
           </div>
 
           <h1 className="mt-6 max-w-4xl text-4xl font-semibold leading-[1.02] text-[var(--color-text)] sm:text-5xl lg:text-6xl">
