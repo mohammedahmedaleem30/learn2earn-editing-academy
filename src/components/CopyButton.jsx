@@ -27,8 +27,8 @@ export default function CopyButton({ text, label = "Copy", copiedLabel = "Copied
       onClick={handleCopy}
       className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border px-3 text-xs font-semibold transition ${
         copied
-          ? "border-crimson-300/40 bg-crimson-500/20 text-white shadow-red-glow"
-          : "border-white/10 bg-white/[0.04] text-zinc-200 hover:border-crimson-400/50 hover:bg-crimson-500/10 hover:text-white"
+          ? "border-[var(--color-border-strong)] bg-[var(--color-accent-soft)] text-[var(--color-text)] shadow-red-glow"
+          : "border-[var(--color-border)] bg-[var(--color-surface-raised)] text-[var(--color-text)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-accent-softer)]"
       } ${className}`}
     >
       {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}

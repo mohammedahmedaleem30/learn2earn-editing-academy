@@ -22,9 +22,9 @@ export default {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        "red-glow": "0 0 34px rgba(220, 20, 60, 0.28)",
-        "red-glow-strong": "0 0 54px rgba(220, 20, 60, 0.42)",
-        panel: "0 24px 80px rgba(0, 0, 0, 0.55)",
+        "red-glow": "var(--shadow-red)",
+        "red-glow-strong": "var(--shadow-red-strong)",
+        panel: "var(--shadow-panel)",
       },
       animation: {
         "fade-up": "fadeUp 520ms ease both",

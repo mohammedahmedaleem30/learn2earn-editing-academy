@@ -51,11 +51,11 @@ export default function App() {
   };
 
   return (
-    <main className="academy-noise min-h-screen bg-[#070707] text-white">
+    <main className="academy-noise min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-[12%] top-[-12%] h-96 w-96 rounded-full bg-crimson-700/20 blur-3xl" />
-        <div className="absolute right-[-6%] top-[18%] h-96 w-96 rounded-full bg-[#DC143C]/14 blur-3xl" />
-        <div className="absolute bottom-[-18%] left-[38%] h-[28rem] w-[28rem] rounded-full bg-[#C9A36A]/8 blur-3xl" />
+        <div className="absolute left-[12%] top-[-12%] h-96 w-96 rounded-full bg-[var(--color-accent-soft)] blur-3xl" />
+        <div className="absolute right-[-6%] top-[18%] h-96 w-96 rounded-full bg-[var(--color-accent-softer)] blur-3xl" />
+        <div className="absolute bottom-[-18%] left-[38%] h-[28rem] w-[28rem] rounded-full bg-[var(--color-gold-soft)] blur-3xl" />
       </div>
 
       <div className="relative z-10 lg:flex">
@@ -73,18 +73,18 @@ export default function App() {
 
             <NicheSelector niches={niches} selectedNicheId={selectedNicheId} onSelectNiche={selectNiche} />
 
-            <section className="rounded-xl border border-crimson-300/20 bg-[#111111] p-5 shadow-panel sm:p-6">
+            <section className="rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-5 shadow-panel sm:p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-3">
                   <span className="grid h-12 w-12 place-items-center rounded-xl bg-crimson-gradient shadow-red-glow">
-                    <BriefcaseBusiness className="h-6 w-6 text-white" />
+                    <BriefcaseBusiness className="h-6 w-6 text-[var(--color-on-accent)]" />
                   </span>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-crimson-200">Selected niche</p>
-                    <h2 className="mt-1 text-3xl font-semibold text-white">{selectedNiche.name}</h2>
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-accent-text)]">Selected niche</p>
+                    <h2 className="mt-1 text-3xl font-semibold text-[var(--color-text)]">{selectedNiche.name}</h2>
                   </div>
                 </div>
-                <p className="max-w-2xl text-sm leading-6 text-zinc-400">
+                <p className="max-w-2xl text-sm leading-6 text-[var(--color-text-muted)]">
                   Built for editors serving {selectedNiche.audience}: copy a hook, use a script structure, collect matching B-roll, and pitch creators with a clean offer.
                 </p>
               </div>
@@ -148,26 +148,26 @@ export default function App() {
                   />
                 </SectionCard>
 
-                <section className="rounded-xl border border-white/10 bg-black/30 p-5">
-                  <div className="flex items-center gap-3 text-white">
-                    <span className="grid h-10 w-10 place-items-center rounded-lg border border-crimson-300/20 bg-crimson-500/12">
-                      <Layers3 className="h-5 w-5 text-crimson-100" />
+                <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-5">
+                  <div className="flex items-center gap-3 text-[var(--color-text)]">
+                    <span className="grid h-10 w-10 place-items-center rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-accent-soft)]">
+                      <Layers3 className="h-5 w-5 text-[var(--color-accent-text)]" />
                     </span>
                     <div>
                       <p className="text-sm font-semibold">Beginner workflow</p>
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Hook {"->"} Edit {"->"} Pitch</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">Hook {"->"} Edit {"->"} Pitch</p>
                     </div>
                   </div>
-                  <p className="mt-4 text-sm leading-6 text-zinc-400">
+                  <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">
                     Start with one niche, build three sample edits, then send the client templates with a free sample offer.
                   </p>
                 </section>
               </div>
             </div>
 
-            <footer className="flex flex-col gap-3 border-t border-white/10 py-6 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
+            <footer className="flex flex-col gap-3 border-t border-[var(--color-border)] py-6 text-sm text-[var(--color-text-subtle)] sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
-                <Clapperboard className="h-4 w-4 text-crimson-200" />
+                <Clapperboard className="h-4 w-4 text-[var(--color-accent-text)]" />
                 <span>Learn2Earn Editing Academy</span>
               </div>
               <span>Static vault. No login, backend, database, or AI API.</span>
