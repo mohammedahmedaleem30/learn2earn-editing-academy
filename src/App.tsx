@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type CommissionType = "Recurring" | "One-Time";
 type Difficulty = "Beginner Friendly" | "Intermediate" | "Advanced";
@@ -90,12 +90,19 @@ type ProgressState = {
   xp: number;
   timeXp: number;
   activeSeconds: number;
+  completedActions: Record<string, CompletedAction>;
 };
 
 type CalculatorSummary = {
   monthly: number;
   yearly: number;
   customers: number;
+};
+
+type CompletedAction = {
+  label: string;
+  xp: number;
+  date: string;
 };
 
 const THEME_STORAGE_KEY = "affiliate-opportunity-vault-theme";
@@ -105,28 +112,28 @@ const CALCULATOR_CUSTOMERS_KEY = "affiliate-vault-calculator-customers";
 const CALCULATOR_PLANS_KEY = "affiliate-vault-calculator-plans";
 
 const rankLadder = [
-  "Bronze I",
-  "Bronze II",
-  "Bronze III",
-  "Silver I",
-  "Silver II",
-  "Silver III",
-  "Gold I",
-  "Gold II",
-  "Gold III",
-  "Platinum I",
-  "Platinum II",
-  "Platinum III",
-  "Diamond I",
-  "Diamond II",
-  "Diamond III",
-  "Onyx I",
-  "Onyx II",
-  "Onyx III",
-  "Arch Nemesis I",
-  "Arch Nemesis II",
-  "Arch Nemesis III",
-  "Nemesis",
+  { name: "Bronze I", xp: 0 },
+  { name: "Bronze II", xp: 100 },
+  { name: "Bronze III", xp: 250 },
+  { name: "Silver I", xp: 500 },
+  { name: "Silver II", xp: 850 },
+  { name: "Silver III", xp: 1250 },
+  { name: "Gold I", xp: 1800 },
+  { name: "Gold II", xp: 2500 },
+  { name: "Gold III", xp: 3300 },
+  { name: "Platinum I", xp: 4500 },
+  { name: "Platinum II", xp: 6000 },
+  { name: "Platinum III", xp: 7800 },
+  { name: "Diamond I", xp: 10000 },
+  { name: "Diamond II", xp: 13000 },
+  { name: "Diamond III", xp: 16500 },
+  { name: "Onyx I", xp: 20500 },
+  { name: "Onyx II", xp: 25000 },
+  { name: "Onyx III", xp: 30000 },
+  { name: "Arch Nemesis I", xp: 36000 },
+  { name: "Arch Nemesis II", xp: 43000 },
+  { name: "Arch Nemesis III", xp: 51000 },
+  { name: "Nemesis", xp: 60000 },
 ];
 
 const offers: Offer[] = [
@@ -368,16 +375,17 @@ const navGroups: Array<{ title: string; items: Array<{ label: string; page: Page
 ];
 
 function readProgress(): ProgressState {
-  if (typeof window === "undefined") return { xp: 0, timeXp: 0, activeSeconds: 0 };
+  if (typeof window === "undefined") return { xp: 0, timeXp: 0, activeSeconds: 0, completedActions: {} };
   try {
     const parsed = JSON.parse(window.localStorage.getItem(PROGRESS_STORAGE_KEY) ?? "");
     return {
       xp: Math.max(0, Number(parsed?.xp) || 0),
       timeXp: Math.max(0, Number(parsed?.timeXp) || 0),
       activeSeconds: Math.max(0, Number(parsed?.activeSeconds) || 0),
+      completedActions: parsed?.completedActions && typeof parsed.completedActions === "object" ? parsed.completedActions : {},
     };
   } catch {
-    return { xp: 0, timeXp: 0, activeSeconds: 0 };
+    return { xp: 0, timeXp: 0, activeSeconds: 0, completedActions: {} };
   }
 }
 
@@ -416,25 +424,21 @@ function readStoredStringRecord(key: string): Record<string, string> {
 }
 
 function getRankInfo(xp: number) {
-  const step = 100;
-  const index = Math.min(Math.floor(xp / step), rankLadder.length - 1);
+  const index = rankLadder.reduce((currentIndex, rank, rankIndex) => (xp >= rank.xp ? rankIndex : currentIndex), 0);
   const currentRank = rankLadder[index];
   const isFinal = index === rankLadder.length - 1;
-  const currentFloor = index * step;
-  const nextFloor = (index + 1) * step;
+  const nextRank = isFinal ? null : rankLadder[index + 1];
+  const currentFloor = currentRank.xp;
+  const nextFloor = nextRank?.xp ?? currentRank.xp;
   return {
-    currentRank,
-    nextRank: isFinal ? "Top 250 eligible" : rankLadder[index + 1],
+    currentRank: currentRank.name,
+    nextRank: isFinal ? "Nemesis: Top 250 eligible" : nextRank?.name ?? "Nemesis",
     currentFloor,
     nextFloor,
     needed: isFinal ? 0 : Math.max(0, nextFloor - xp),
-    progress: isFinal ? 100 : Math.min(100, ((xp - currentFloor) / step) * 100),
+    progress: isFinal ? 100 : Math.min(100, ((xp - currentFloor) / Math.max(1, nextFloor - currentFloor)) * 100),
     isFinal,
   };
-}
-
-function randomTimeXp() {
-  return Math.floor(Math.random() * 5) + 3;
 }
 
 function getSystemTheme(): Theme {
@@ -464,8 +468,10 @@ function App() {
   const [blueprintTab, setBlueprintTab] = useState<BlueprintTab>("Overview");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [xpToast, setXpToast] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressState>(readProgress);
   const [calculatorSummary, setCalculatorSummary] = useState<CalculatorSummary>(readCalculatorSummary);
+  const lastActivityAt = useRef(Date.now());
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -490,22 +496,32 @@ function App() {
   }, [calculatorSummary]);
 
   useEffect(() => {
+    const activityEvents = ["pointerdown", "keydown", "scroll", "touchstart"];
+    const markActive = () => {
+      lastActivityAt.current = Date.now();
+    };
+
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, markActive, { passive: true }));
     const timer = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastActivityAt.current > 120000) return;
       setProgress((current) => {
         const nextSeconds = current.activeSeconds + 60;
         const crossedHour = Math.floor(nextSeconds / 3600) > Math.floor(current.activeSeconds / 3600);
         if (!crossedHour) return { ...current, activeSeconds: nextSeconds };
-        const earned = randomTimeXp();
         return {
-          xp: current.xp + earned,
-          timeXp: current.timeXp + earned,
+          ...current,
+          xp: current.xp + 1,
+          timeXp: current.timeXp + 1,
           activeSeconds: nextSeconds,
         };
       });
     }, 60000);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, markActive));
+    };
   }, []);
 
   useEffect(() => {
@@ -528,21 +544,62 @@ function App() {
 
   const filteredOffers = useMemo(() => filterOffers(offers, activeFilter, query), [activeFilter, query]);
 
-  const addXp = (amount: number) => {
-    setProgress((current) => ({ ...current, xp: current.xp + amount }));
+  const showXpToast = (message: string) => {
+    setXpToast(message);
+    window.setTimeout(() => setXpToast(null), 1800);
+  };
+
+  const claimXp = (actionKey: string, amount: number, label: string) => {
+    if (progress.completedActions[actionKey]) {
+      showXpToast("XP already claimed");
+      return;
+    }
+    setProgress((current) => {
+      if (current.completedActions[actionKey]) {
+        return current;
+      }
+      return {
+        ...current,
+        xp: current.xp + amount,
+        completedActions: {
+          ...current.completedActions,
+          [actionKey]: { label, xp: amount, date: new Date().toISOString() },
+        },
+      };
+    });
+    showXpToast(`+${amount} XP earned`);
+  };
+
+  const claimCalculatorXp = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    claimXp(`calculator:${today}`, 2, "Used Earnings Calculator");
   };
 
   const openPage = (nextPage: Page, nextFilter?: FilterKey) => {
-    if (nextPage === "resources") addXp(8);
+    if (nextPage === "resources") claimXp("page:resources", 2, "Opened Resources");
     setPage(nextPage);
     if (nextFilter) setActiveFilter(nextFilter);
     setSidebarOpen(false);
   };
 
   const openBlueprint = (offer: Offer) => {
-    addXp(25);
+    claimXp(`blueprint:${offer.id}`, 5, `Viewed ${offer.productName} Blueprint`);
     setSelectedOffer(offer);
     setBlueprintTab("Overview");
+  };
+
+  const openAffiliateLink = (offer: Offer, link = offer.affiliateLink, actionId = offer.id) => {
+    claimXp(`open-link:${actionId}`, 2, `Opened ${offer.productName} Affiliate Link`);
+    window.open(link, "_blank", "noopener,noreferrer");
+  };
+
+  const openTool = (tool: AiTool) => {
+    claimXp(`tool:${tool.name}`, 2, `Opened ${tool.name}`);
+    window.open(tool.url, "_blank", "noopener,noreferrer");
+  };
+
+  const claimResource = (resource: string) => {
+    claimXp(`resource:${resource}`, 2, `Opened ${resource}`);
   };
 
   const copyAffiliateLink = (link: string, id: string) => {
@@ -557,7 +614,7 @@ function App() {
     textArea.select();
     try {
       document.execCommand("copy");
-      if (id !== "hooks") addXp(5);
+      if (id !== "hooks") claimXp(`copy-link:${link}`, 3, "Copied affiliate link");
       setCopiedId(id);
       setToast("Affiliate link copied");
       window.setTimeout(() => {
@@ -609,6 +666,7 @@ function App() {
                 copiedId={copiedId}
                 progress={progress}
                 calculatorSummary={calculatorSummary}
+                onOpenLink={openAffiliateLink}
               />
             )}
             {page === "opportunities" && (
@@ -620,17 +678,27 @@ function App() {
                 onFilter={setActiveFilter}
                 onBlueprint={openBlueprint}
                 onCopy={copyAffiliateLink}
+                onOpenLink={openAffiliateLink}
               />
             )}
-            {page === "ai-tools" && <AiToolsPage />}
+            {page === "ai-tools" && <AiToolsPage onOpenTool={openTool} />}
             {page === "hook-generator" && <HookGeneratorPage onCopyAll={(text) => copyAffiliateLink(text, "hooks")} copied={copiedId === "hooks"} />}
-            {page === "resources" && <ResourcesPage onOpportunities={() => openPage("opportunities", "All")} onHooks={() => openPage("hook-generator")} />}
-            {page === "level-system" && <LevelSystemPage progress={progress} calculatorSummary={calculatorSummary} onReset={() => setProgress({ xp: 0, timeXp: 0, activeSeconds: 0 })} />}
-            {page === "calculator" && <EarningsCalculator onSummary={setCalculatorSummary} onUse={() => addXp(3)} />}
+            {page === "resources" && <ResourcesPage onOpportunities={() => openPage("opportunities", "All")} onHooks={() => openPage("hook-generator")} onOpenResource={claimResource} />}
+            {page === "level-system" && (
+              <LevelSystemPage
+                progress={progress}
+                calculatorSummary={calculatorSummary}
+                onReset={() => setProgress({ xp: 0, timeXp: 0, activeSeconds: 0, completedActions: {} })}
+              />
+            )}
+            {page === "calculator" && <EarningsCalculator onSummary={setCalculatorSummary} onUse={claimCalculatorXp} />}
             {!validPages.includes(page) && <FallbackPage onHome={() => openPage("dashboard")} />}
           </div>
+          <div className="mt-4 xl:hidden">
+            <CreatorProgressPanel progress={progress} calculatorSummary={calculatorSummary} onCalculator={() => openPage("calculator")} onOpportunities={() => openPage("opportunities", "All")} />
+          </div>
         </section>
-        <UtilityPanel page={page} onCalculator={() => openPage("calculator")} onOpportunities={() => openPage("opportunities", "All")} />
+        <UtilityPanel progress={progress} calculatorSummary={calculatorSummary} onCalculator={() => openPage("calculator")} onOpportunities={() => openPage("opportunities", "All")} />
       </div>
 
       <AnimatePresence>
@@ -642,7 +710,8 @@ function App() {
             onTab={setBlueprintTab}
             onClose={() => setSelectedOffer(null)}
             onCopy={copyAffiliateLink}
-            onXp={addXp}
+            onClaimXp={claimXp}
+            onOpenLink={openAffiliateLink}
           />
         )}
       </AnimatePresence>
@@ -656,6 +725,19 @@ function App() {
             exit={{ y: -10, opacity: 0, scale: 0.96 }}
           >
             {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {xpToast && (
+          <motion.div
+            className="fixed bottom-4 right-4 z-[70] max-w-[calc(100vw-2rem)] rounded-xl border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-4 py-3 text-sm font-bold text-[var(--app-accent-text)] shadow-[var(--app-glow)]"
+            initial={{ y: 16, opacity: 0, scale: 0.96 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 10, opacity: 0, scale: 0.96 }}
+          >
+            {xpToast}
           </motion.div>
         )}
       </AnimatePresence>
@@ -817,6 +899,7 @@ function DashboardPage({
   onCalculator,
   onBlueprint,
   onCopy,
+  onOpenLink,
   copiedId,
   progress,
   calculatorSummary,
@@ -825,6 +908,7 @@ function DashboardPage({
   onCalculator: () => void;
   onBlueprint: (offer: Offer) => void;
   onCopy: (link: string, id: string) => void;
+  onOpenLink: (offer: Offer) => void;
   copiedId: string | null;
   progress: ProgressState;
   calculatorSummary: CalculatorSummary;
@@ -834,7 +918,7 @@ function DashboardPage({
   const hours = progress.activeSeconds / 3600;
   return (
     <div className="space-y-4">
-      <section className="app-card overflow-hidden rounded-3xl p-5 sm:p-8">
+      <section className="app-card overflow-visible rounded-3xl p-5 sm:p-8">
         <div className="max-w-3xl">
           <span className="inline-flex rounded-full border border-[var(--app-border-strong)] bg-[var(--app-active)] px-3 py-1 text-xs font-semibold text-[var(--app-accent-text)]">
             Built for Whop creators
@@ -876,7 +960,7 @@ function DashboardPage({
         <SectionTitle eyebrow="Featured Opportunities" title="Start with proven creator-friendly offers" />
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {featured.map((offer) => (
-            <OfferCard key={offer.id} offer={offer} copied={copiedId === offer.id} onBlueprint={() => onBlueprint(offer)} onCopy={() => onCopy(offer.affiliateLink, offer.id)} />
+            <OfferCard key={offer.id} offer={offer} copied={copiedId === offer.id} onBlueprint={() => onBlueprint(offer)} onCopy={() => onCopy(offer.affiliateLink, offer.id)} onOpenLink={() => onOpenLink(offer)} />
           ))}
         </div>
       </section>
@@ -896,7 +980,7 @@ function ProgressCard({
   icon: LucideIcon;
 }) {
   return (
-    <div className="app-card min-w-0 overflow-hidden rounded-2xl p-4">
+    <div className="app-card min-w-0 overflow-visible rounded-2xl p-4">
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="break-words text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)]">{label}</p>
@@ -913,7 +997,7 @@ function ProgressCard({
 
 function RankCard({ progress, rankInfo }: { progress: ProgressState; rankInfo: ReturnType<typeof getRankInfo> }) {
   return (
-    <div className="app-card min-w-0 overflow-hidden rounded-2xl p-4">
+    <div className="app-card min-w-0 overflow-visible rounded-2xl p-4">
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="break-words text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)]">Creator Rank</p>
@@ -950,6 +1034,7 @@ function OpportunitiesPage({
   onFilter,
   onBlueprint,
   onCopy,
+  onOpenLink,
 }: {
   filter: FilterKey;
   query: string;
@@ -958,6 +1043,7 @@ function OpportunitiesPage({
   onFilter: (filter: FilterKey) => void;
   onBlueprint: (offer: Offer) => void;
   onCopy: (link: string, id: string) => void;
+  onOpenLink: (offer: Offer) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -983,7 +1069,7 @@ function OpportunitiesPage({
         </div>
       </section>
 
-      <section className="app-card overflow-hidden rounded-3xl">
+      <section className="app-card overflow-visible rounded-3xl">
         <div className="hidden grid-cols-[1.35fr_.7fr_.7fr_1fr_.8fr_.9fr_1.2fr] gap-3 border-b border-[var(--app-border)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)] xl:grid">
           <span>Offer</span>
           <span>Type</span>
@@ -995,7 +1081,7 @@ function OpportunitiesPage({
         </div>
         <div className="divide-y divide-[var(--app-border)]">
           {visibleOffers.length ? (
-            visibleOffers.map((offer) => <OfferRow key={offer.id} offer={offer} copied={copiedId === offer.id} onBlueprint={() => onBlueprint(offer)} onCopy={() => onCopy(offer.affiliateLink, offer.id)} />)
+            visibleOffers.map((offer) => <OfferRow key={offer.id} offer={offer} copied={copiedId === offer.id} onBlueprint={() => onBlueprint(offer)} onCopy={() => onCopy(offer.affiliateLink, offer.id)} onOpenLink={() => onOpenLink(offer)} />)
           ) : (
             <div className="p-8 text-center">
               <p className="text-lg font-semibold text-[var(--app-text)]">No offers found</p>
@@ -1008,13 +1094,28 @@ function OpportunitiesPage({
   );
 }
 
-function OfferRow({ offer, copied, onBlueprint, onCopy }: { offer: Offer; copied: boolean; onBlueprint: () => void; onCopy: () => void }) {
+function OfferRow({
+  offer,
+  copied,
+  onBlueprint,
+  onCopy,
+  onOpenLink,
+}: {
+  offer: Offer;
+  copied: boolean;
+  onBlueprint: () => void;
+  onCopy: () => void;
+  onOpenLink: () => void;
+}) {
   return (
     <div className="grid min-w-0 gap-3 p-4 xl:grid-cols-[1.35fr_.7fr_.7fr_1fr_.8fr_.9fr_1.2fr] xl:items-center">
-      <div className="min-w-0">
+      <div className="flex min-w-0 gap-3">
+        <LogoBadge label={getOfferInitials(offer)} />
+        <div className="min-w-0">
         <p className="break-words font-semibold text-[var(--app-text)]">{offer.productName}</p>
-        <p className="mt-1 line-clamp-2 break-words text-sm text-[var(--app-muted)]">{offer.description}</p>
+        <p className="mt-1 whitespace-normal break-words text-sm leading-6 text-[var(--app-muted)]">{offer.description}</p>
         {offer.rating && <p className="mt-1 text-xs text-[var(--app-subtle)]">{offer.rating.toFixed(1)} rating{offer.reviews ? ` / ${offer.reviews} reviews` : ""}</p>}
+        </div>
       </div>
       <MobileLabel label="Type" value={offer.commissionType} />
       <MobileLabel label="Commission" value={`${offer.commissionPercent}%`} />
@@ -1024,22 +1125,37 @@ function OfferRow({ offer, copied, onBlueprint, onCopy }: { offer: Offer; copied
       <div className="grid min-w-0 gap-2 sm:grid-cols-3 xl:grid-cols-1">
         <Button icon={Target} label="View Blueprint" onClick={onBlueprint} variant="primary" />
         <Button icon={copied ? Check : Copy} label={copied ? "Copied" : "Copy Affiliate Link"} onClick={onCopy} />
-        <Button icon={ExternalLink} label="Open Affiliate Link" onClick={() => window.open(offer.affiliateLink, "_blank", "noopener,noreferrer")} />
+        <Button icon={ExternalLink} label="Open Affiliate Link" onClick={onOpenLink} />
       </div>
     </div>
   );
 }
 
-function OfferCard({ offer, copied, onBlueprint, onCopy }: { offer: Offer; copied: boolean; onBlueprint: () => void; onCopy: () => void }) {
+function OfferCard({
+  offer,
+  copied,
+  onBlueprint,
+  onCopy,
+  onOpenLink,
+}: {
+  offer: Offer;
+  copied: boolean;
+  onBlueprint: () => void;
+  onCopy: () => void;
+  onOpenLink: () => void;
+}) {
   return (
-    <motion.article className="min-w-0 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4" whileHover={{ y: -4 }}>
-      <div className="min-w-0">
-        <p className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-accent-text)]">{offer.category}</p>
-        <h3 className="mt-2 truncate text-xl font-bold text-[var(--app-text)]">{offer.productName}</h3>
-        {offer.rating && <p className="mt-1 truncate text-xs text-[var(--app-muted)]">{offer.rating.toFixed(1)} rating{offer.reviews ? ` / ${offer.reviews} reviews` : ""}</p>}
+    <motion.article className="flex min-w-0 flex-col rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4" whileHover={{ y: -4 }}>
+      <div className="flex min-w-0 items-start gap-3">
+        <LogoBadge label={getOfferInitials(offer)} />
+        <div className="min-w-0">
+          <p className="whitespace-normal break-words text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-accent-text)]">{offer.category}</p>
+          <h3 className="mt-2 whitespace-normal break-words text-xl font-bold text-[var(--app-text)]">{offer.productName}</h3>
+          {offer.rating && <p className="mt-1 whitespace-normal break-words text-xs text-[var(--app-muted)]">{offer.rating.toFixed(1)} rating{offer.reviews ? ` / ${offer.reviews} reviews` : ""}</p>}
+        </div>
       </div>
 
-      <p className="mt-3 line-clamp-2 min-w-0 break-words text-sm leading-6 text-[var(--app-muted)]">{offer.description}</p>
+      <p className="mt-3 min-w-0 whitespace-normal break-words text-sm leading-6 text-[var(--app-muted)]">{offer.description}</p>
 
       <div className="mt-4 flex min-w-0 flex-row flex-wrap gap-2">
         <OfferBadge label="Price" value={offer.price} />
@@ -1047,9 +1163,12 @@ function OfferCard({ offer, copied, onBlueprint, onCopy }: { offer: Offer; copie
         <OfferBadge label="Difficulty" value={offer.difficulty} />
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+      <div className="mt-auto grid gap-2 pt-4 sm:grid-cols-2">
         <Button icon={Target} label="View Blueprint" onClick={onBlueprint} variant="primary" />
         <Button icon={copied ? Check : Copy} label={copied ? "Copied" : "Copy Link"} onClick={onCopy} />
+        <div className="sm:col-span-2">
+          <Button icon={ExternalLink} label="Open Affiliate Link" onClick={onOpenLink} />
+        </div>
       </div>
     </motion.article>
   );
@@ -1059,9 +1178,42 @@ function OfferBadge({ label, value }: { label: string; value: string }) {
   return (
     <span className="inline-flex min-w-0 max-w-full flex-row items-center gap-1 rounded-full border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-1 text-xs leading-5">
       <span className="shrink-0 font-semibold text-[var(--app-subtle)]">{label}:</span>
-      <span className="min-w-0 truncate font-bold text-[var(--app-text)]">{value}</span>
+      <span className="min-w-0 whitespace-normal break-words font-bold text-[var(--app-text)]">{value}</span>
     </span>
   );
+}
+
+function LogoBadge({ label }: { label: string }) {
+  return (
+    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[var(--app-border-strong)] bg-[var(--app-active)] text-sm font-black text-[var(--app-accent-text)] shadow-[var(--app-glow)]">
+      {label}
+    </span>
+  );
+}
+
+function getOfferInitials(offer: Offer) {
+  const initials: Record<string, string> = {
+    toolsuite: "TS",
+    "deal-soldier": "DS",
+    "friends-family-tickets": "FF",
+    skylit: "SK",
+    "swift-algo-indicator": "SA",
+  };
+  return initials[offer.id] ?? offer.productName.split(/\s+/).map((word) => word[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function getToolInitials(name: string) {
+  const initials: Record<string, string> = {
+    ChatGPT: "GPT",
+    Claude: "CL",
+    Gemini: "GM",
+    Perplexity: "PX",
+    ElevenLabs: "EL",
+    Canva: "CV",
+    CapCut: "CC",
+    Descript: "DS",
+  };
+  return initials[name] ?? name.slice(0, 2).toUpperCase();
 }
 
 function BlueprintModal({
@@ -1071,7 +1223,8 @@ function BlueprintModal({
   onTab,
   onClose,
   onCopy,
-  onXp,
+  onClaimXp,
+  onOpenLink,
 }: {
   offer: Offer;
   activeTab: BlueprintTab;
@@ -1079,7 +1232,8 @@ function BlueprintModal({
   onTab: (tab: BlueprintTab) => void;
   onClose: () => void;
   onCopy: (link: string, id: string) => void;
-  onXp: (amount: number) => void;
+  onClaimXp: (actionKey: string, amount: number, label: string) => void;
+  onOpenLink: (offer: Offer, link?: string, actionId?: string) => void;
 }) {
   const tabs: BlueprintTab[] = ["Overview", "Audience", "Content Ideas", "Promotion Strategy", "Resources"];
   return (
@@ -1109,7 +1263,7 @@ function BlueprintModal({
                 activeTab === tab ? "border-[var(--app-border-strong)] bg-[var(--app-active)] text-[var(--app-text)]" : "border-[var(--app-border)] bg-[var(--app-button)] text-[var(--app-muted)]"
               }`}
               onClick={() => {
-                if (tab === "Resources") onXp(15);
+                if (tab === "Resources") onClaimXp(`blueprint-resources:${offer.id}`, 2, `Opened ${offer.productName} Resources`);
                 onTab(tab);
               }}
             >
@@ -1123,12 +1277,12 @@ function BlueprintModal({
           {activeTab === "Audience" && <BlueprintAudience offer={offer} />}
           {activeTab === "Content Ideas" && <BlueprintContent offer={offer} />}
           {activeTab === "Promotion Strategy" && <BlueprintStrategy offer={offer} />}
-          {activeTab === "Resources" && <BlueprintResources offer={offer} copiedId={copiedId} onCopy={onCopy} onXp={onXp} />}
+          {activeTab === "Resources" && <BlueprintResources offer={offer} copiedId={copiedId} onCopy={onCopy} onClaimXp={onClaimXp} onOpenLink={onOpenLink} />}
         </div>
 
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
           <Button icon={copiedId === offer.id ? Check : Copy} label={copiedId === offer.id ? "Copied" : "Copy Affiliate Link"} onClick={() => onCopy(offer.affiliateLink, offer.id)} variant="primary" />
-          <Button icon={ExternalLink} label="Open Affiliate Link" onClick={() => window.open(offer.affiliateLink, "_blank", "noopener,noreferrer")} />
+          <Button icon={ExternalLink} label="Open Affiliate Link" onClick={() => onOpenLink(offer)} />
         </div>
       </motion.section>
     </motion.div>
@@ -1229,12 +1383,14 @@ function BlueprintResources({
   offer,
   copiedId,
   onCopy,
-  onXp,
+  onClaimXp,
+  onOpenLink,
 }: {
   offer: Offer;
   copiedId: string | null;
   onCopy: (link: string, id: string) => void;
-  onXp: (amount: number) => void;
+  onClaimXp: (actionKey: string, amount: number, label: string) => void;
+  onOpenLink: (offer: Offer, link?: string, actionId?: string) => void;
 }) {
   const resources = ["Official Website", "Affiliate Link", "Terms", "Assets"];
   return (
@@ -1247,7 +1403,7 @@ function BlueprintResources({
               <p className="mt-2 text-sm text-[var(--app-muted)]">Use inside your Whop creator workflow.</p>
               {resource === "Assets" && (
                 <div className="mt-3">
-                  <Button icon={ExternalLink} label="View Assets" onClick={() => onXp(15)} />
+                  <Button icon={ExternalLink} label="View Assets" onClick={() => onClaimXp(`assets:${offer.id}`, 2, `Viewed ${offer.productName} Assets`)} />
                 </div>
               )}
             </div>
@@ -1263,7 +1419,7 @@ function BlueprintResources({
                 <p className="mt-1 text-sm text-[var(--app-muted)]">{plan.price}</p>
                 <div className="mt-3 grid gap-2">
                   <Button icon={copiedId === plan.id ? Check : Copy} label={copiedId === plan.id ? "Copied" : "Copy Link"} onClick={() => onCopy(plan.affiliateLink, plan.id)} />
-                  <Button icon={ExternalLink} label="Open Link" onClick={() => window.open(plan.affiliateLink, "_blank", "noopener,noreferrer")} />
+                  <Button icon={ExternalLink} label="Open Link" onClick={() => onOpenLink(offer, plan.affiliateLink, plan.id)} />
                 </div>
               </div>
             ))}
@@ -1274,18 +1430,25 @@ function BlueprintResources({
   );
 }
 
-function AiToolsPage() {
+function AiToolsPage({ onOpenTool }: { onOpenTool: (tool: AiTool) => void }) {
   return (
     <section className="app-card rounded-3xl p-5">
       <SectionTitle eyebrow="AI Tools Vault" title="Creator tools for faster affiliate execution" description="Research, write, design, edit, clip, and publish without leaving your creator workflow." />
       <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {aiTools.map((tool) => (
-          <div key={tool.name} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-            <h3 className="text-lg font-bold text-[var(--app-text)]">{tool.name}</h3>
-            <p className="mt-2 min-h-12 text-sm leading-6 text-[var(--app-muted)]">{tool.description}</p>
-            <Metric label="Use case" value={tool.useCase} />
+          <div key={tool.name} className="flex min-w-0 flex-col rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <LogoBadge label={getToolInitials(tool.name)} />
+              <div className="min-w-0">
+                <h3 className="whitespace-normal break-words text-lg font-bold text-[var(--app-text)]">{tool.name}</h3>
+                <p className="mt-2 whitespace-normal break-words text-sm leading-6 text-[var(--app-muted)]">{tool.description}</p>
+              </div>
+            </div>
             <div className="mt-4">
-              <Button icon={ExternalLink} label="Open Tool" onClick={() => window.open(tool.url, "_blank", "noopener,noreferrer")} />
+              <Metric label="Use case" value={tool.useCase} />
+            </div>
+            <div className="mt-4">
+              <Button icon={ExternalLink} label="Open Tool" onClick={() => onOpenTool(tool)} />
             </div>
           </div>
         ))}
@@ -1332,7 +1495,15 @@ function HookGeneratorPage({ onCopyAll, copied }: { onCopyAll: (text: string) =>
   );
 }
 
-function ResourcesPage({ onOpportunities, onHooks }: { onOpportunities: () => void; onHooks: () => void }) {
+function ResourcesPage({
+  onOpportunities,
+  onHooks,
+  onOpenResource,
+}: {
+  onOpportunities: () => void;
+  onHooks: () => void;
+  onOpenResource: (resource: string) => void;
+}) {
   const resources = [
     {
       title: "Blueprint Checklist",
@@ -1374,6 +1545,9 @@ function ResourcesPage({ onOpportunities, onHooks }: { onOpportunities: () => vo
         {resources.map((resource) => (
           <Panel key={resource.title} title={resource.title} icon={resource.icon}>
             <p>{resource.description}</p>
+            <div className="mt-4">
+              <Button icon={ExternalLink} label="Open Resource" onClick={() => onOpenResource(resource.title)} />
+            </div>
           </Panel>
         ))}
       </div>
@@ -1392,76 +1566,99 @@ function LevelSystemPage({
 }) {
   const rankInfo = getRankInfo(progress.xp);
   const hours = progress.activeSeconds / 3600;
+  const completedActions = Object.entries(progress.completedActions).sort(([, a], [, b]) => Date.parse(b.date) - Date.parse(a.date));
   const xpRules = [
-    "3 to 7 XP per active hour spent in the app.",
-    "10 XP when user opens an affiliate opportunity.",
-    "5 XP when user copies an affiliate link.",
-    "3 XP when user uses the Earnings Calculator.",
-    "8 XP when user opens Resources.",
-    "15 XP when user completes or views a blueprint/resource guide.",
+    "1 XP per active hour spent in the app while visible and active.",
+    "5 XP the first time you view each unique blueprint.",
+    "3 XP the first time you copy each unique affiliate link.",
+    "2 XP the first time you open each unique affiliate link.",
+    "2 XP once per day when you use the Earnings Calculator.",
+    "2 XP the first time you open each unique resource or tool.",
   ];
 
   return (
     <div className="space-y-4">
-      <section className="app-card rounded-3xl p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <SectionTitle
-            eyebrow="Level System"
-            title="Creator rank progression"
-            description="Earn XP by learning, opening blueprints, copying links, using resources, and forecasting affiliate income."
-          />
-          <Button icon={RotateCcw} label="Reset Progress" onClick={onReset} />
-        </div>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <ProgressCard label="Current Rank" value={rankInfo.currentRank} subtext={rankInfo.isFinal ? "Top 250 eligible." : `Next: ${rankInfo.nextRank}`} icon={Trophy} />
-          <ProgressCard label="Total XP" value={`${progress.xp} XP`} subtext={`${rankInfo.needed} XP needed for next rank.`} icon={Sparkles} />
-          <ProgressCard label="Learning Hours" value={`${hours.toFixed(1)} hrs`} subtext={`${progress.timeXp} XP earned from time.`} icon={Users} />
-          <ProgressCard label="Calculator Monthly" value={formatCurrency(calculatorSummary.monthly)} subtext="Synced from your calculator inputs." icon={Calculator} />
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-bold text-[var(--app-text)]">{rankInfo.currentRank}</p>
-            <p className="text-sm text-[var(--app-muted)]">{rankInfo.nextRank}</p>
+      <section className="app-card rounded-3xl p-5 sm:p-6">
+        <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr] xl:items-start">
+          <div className="min-w-0">
+            <SectionTitle
+              eyebrow="Level System"
+              title="Creator rank progression"
+              description="Earn XP through meaningful creator actions. Each offer, link, resource, and tool can only reward XP once where applicable."
+            />
+            <div className="mt-5 rounded-3xl border border-[var(--app-border-strong)] bg-[var(--app-active)] p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-subtle)]">Current Rank</p>
+                  <h3 className="mt-2 break-words text-4xl font-black text-[var(--app-text)]">{rankInfo.currentRank}</h3>
+                  <p className="mt-2 break-words text-sm text-[var(--app-muted)]">
+                    {rankInfo.isFinal ? "Nemesis reached. Top 250 eligible." : `${rankInfo.needed} XP until ${rankInfo.nextRank}.`}
+                  </p>
+                </div>
+                <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl border border-[var(--app-border-strong)] bg-[var(--app-surface)] text-[var(--app-accent-text)] shadow-[var(--app-glow)]">
+                  <Trophy className="h-9 w-9" />
+                </div>
+              </div>
+              <XpBar value={rankInfo.progress} />
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <Metric label="Total XP" value={`${progress.xp} XP`} />
+                <Metric label="Learning Hours" value={`${hours.toFixed(1)} hrs`} />
+                <Metric label="Next Rank" value={rankInfo.nextRank} />
+              </div>
+            </div>
           </div>
-          <XpBar value={rankInfo.progress} />
-          <p className="mt-2 break-words text-sm text-[var(--app-muted)]">
-            {progress.xp} XP earned. {rankInfo.isFinal ? "Nemesis reached. Top 250 eligible." : `${rankInfo.needed} XP until ${rankInfo.nextRank}.`}
-          </p>
+          <Button icon={RotateCcw} label="Reset Progress" onClick={onReset} />
         </div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
         <div className="app-card rounded-3xl p-5">
           <SectionTitle eyebrow="Rank Ladder" title="Path to Nemesis" />
-          <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {rankLadder.map((rank, index) => {
-              const active = rank === rankInfo.currentRank;
-              const unlocked = progress.xp >= index * 100;
+              const active = rank.name === rankInfo.currentRank;
+              const unlocked = progress.xp >= rank.xp;
               return (
                 <div
-                  key={rank}
+                  key={rank.name}
                   className={`rounded-2xl border p-3 ${
                     active
                       ? "border-[var(--app-border-strong)] bg-[var(--app-active)]"
                       : unlocked
                         ? "border-[var(--app-border)] bg-[var(--app-surface-muted)]"
-                        : "border-[var(--app-border)] bg-[var(--app-surface)] opacity-70"
+                      : "border-[var(--app-border)] bg-[var(--app-surface)] opacity-70"
                   }`}
                 >
-                  <p className="break-words text-sm font-bold text-[var(--app-text)]">{rank}</p>
-                  <p className="mt-1 text-xs text-[var(--app-muted)]">{rank === "Nemesis" ? "Top 250 eligible" : `${index * 100} XP`}</p>
+                  <p className="break-words text-sm font-bold text-[var(--app-text)]">{rank.name}</p>
+                  <p className="mt-1 text-xs text-[var(--app-muted)]">{rank.name === "Nemesis" ? "60000 XP + Top 250 eligible" : `${rank.xp} XP`}</p>
+                  <p className="mt-2 text-xs font-semibold text-[var(--app-accent-text)]">{unlocked ? "Unlocked" : "Locked"}</p>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="app-card rounded-3xl p-5">
-          <SectionTitle eyebrow="How to Earn XP" title="Creator actions" />
-          <div className="mt-5">
-            <BulletList items={xpRules} />
+        <div className="space-y-4">
+          <div className="app-card rounded-3xl p-5">
+            <SectionTitle eyebrow="How to Earn XP" title="Creator actions" />
+            <div className="mt-5">
+              <BulletList items={xpRules} />
+            </div>
+          </div>
+          <div className="app-card rounded-3xl p-5">
+            <SectionTitle eyebrow="Completed Actions" title="Claimed XP" description="Anti-farming log for one-time XP rewards." />
+            <div className="mt-5 space-y-2">
+              {completedActions.length ? (
+                completedActions.slice(0, 12).map(([key, action]) => (
+                  <div key={key} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3">
+                    <p className="break-words text-sm font-bold text-[var(--app-text)]">{action.label}</p>
+                    <p className="mt-1 text-xs text-[var(--app-muted)]">+{action.xp} XP claimed</p>
+                  </div>
+                ))
+              ) : (
+                <p className="break-words text-sm text-[var(--app-muted)]">No XP actions claimed yet. Open a blueprint, copy a link, or use the calculator to start.</p>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -1509,8 +1706,15 @@ function EarningsCalculator({ onSummary, onUse }: { onSummary: (summary: Calcula
   }, [customers, plans, totalMonthly, totalYearly, totalCustomers, onSummary]);
   return (
     <div className="space-y-4">
-      <section className="app-card rounded-3xl p-5">
-        <SectionTitle eyebrow="Earnings Calculator" title="Forecast affiliate revenue by offer" description="Select plan levels, enter referrals, and estimate monthly or yearly recurring payouts." />
+      <section className="app-card rounded-3xl p-5 sm:p-6">
+        <div className="grid gap-5 xl:grid-cols-[1.1fr_.9fr] xl:items-end">
+          <SectionTitle eyebrow="Earnings Calculator" title="Forecast affiliate revenue by offer" description="Select plan levels, enter referrals, and estimate monthly or yearly recurring payouts." />
+          <div className="rounded-3xl border border-[var(--app-border-strong)] bg-[var(--app-active)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-subtle)]">Estimated Bank Balance</p>
+            <p className="mt-2 break-words text-4xl font-black text-[var(--app-text)]">{formatCurrency(period === "monthly" ? totalMonthly : totalYearly)}</p>
+            <p className="mt-2 text-sm text-[var(--app-muted)]">{period === "monthly" ? "Monthly recurring projection" : "Yearly recurring projection"}</p>
+          </div>
+        </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <Stat label="Monthly Earnings" value={formatCurrency(totalMonthly)} icon={BadgeDollarSign} />
           <Stat label="Yearly Earnings" value={formatCurrency(totalYearly)} icon={TrendingUp} />
@@ -1530,44 +1734,55 @@ function EarningsCalculator({ onSummary, onUse }: { onSummary: (summary: Calcula
       </section>
       <section className="grid gap-3">
         {rows.map((row) => (
-          <div key={row.offer.id} className="app-card grid min-w-0 gap-3 rounded-2xl p-4 lg:grid-cols-3 xl:grid-cols-[1.2fr_minmax(220px,1.2fr)_1fr_1fr_1fr] xl:items-center">
-            <div className="min-w-0">
-              <p className="break-words font-bold text-[var(--app-text)]">{row.offer.productName}</p>
-              <p className="mt-1 text-sm text-[var(--app-muted)]">{row.offer.category}</p>
+          <div key={row.offer.id} className="app-card grid min-w-0 gap-4 rounded-2xl p-4 lg:grid-cols-2 xl:grid-cols-[1.25fr_minmax(240px,1.1fr)_1fr_1fr] xl:items-stretch">
+            <div className="flex min-w-0 gap-3 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3">
+              <LogoBadge label={getOfferInitials(row.offer)} />
+              <div className="min-w-0">
+                <p className="break-words font-bold text-[var(--app-text)]">{row.offer.productName}</p>
+                <p className="mt-1 break-words text-sm text-[var(--app-muted)]">{row.offer.category}</p>
+                <p className="mt-2 break-words text-sm font-semibold text-[var(--app-accent-text)]">{formatCurrency(row.commission)} per customer</p>
+              </div>
             </div>
-            {row.offer.plans ? (
-              <select
-                className="h-11 min-w-0 rounded-xl border border-[var(--app-border)] bg-[var(--app-input)] px-3 text-sm font-semibold text-[var(--app-text)]"
-                value={row.selectedPlan?.id}
-                onChange={(event) => {
-                  onUse();
-                  setPlans((current) => ({ ...current, [row.offer.id]: event.target.value }));
-                }}
-              >
-                {row.offer.plans.map((plan) => (
-                  <option key={plan.id} value={plan.id}>
-                    {plan.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <Metric label="Plan" value="Standard" />
-            )}
-            <label className="min-w-0">
-              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)]">Customers</span>
-              <input
-                className="mt-1 h-11 w-full rounded-xl border border-[var(--app-border)] bg-[var(--app-input)] px-3 text-[var(--app-text)]"
-                type="number"
-                min="0"
-                value={row.count}
-                onChange={(event) => {
-                  onUse();
-                  setCustomers((current) => ({ ...current, [row.offer.id]: Math.max(0, Number(event.target.value) || 0) }));
-                }}
-              />
-            </label>
-            <Metric label="Per Customer" value={formatCurrency(row.commission)} />
-            <Metric label={period === "monthly" ? "Monthly" : "Yearly"} value={formatCurrency(period === "monthly" ? row.monthly : row.yearly)} />
+            <div className="grid min-w-0 gap-3 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3">
+              {row.offer.plans ? (
+                <label className="min-w-0">
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)]">Selected Plan</span>
+                  <select
+                    className="mt-1 h-12 w-full min-w-0 rounded-xl border border-[var(--app-border)] bg-[var(--app-input)] px-3 text-sm font-semibold text-[var(--app-text)]"
+                    value={row.selectedPlan?.id}
+                    onChange={(event) => {
+                      onUse();
+                      setPlans((current) => ({ ...current, [row.offer.id]: event.target.value }));
+                    }}
+                  >
+                    {row.offer.plans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <Metric label="Plan" value="Standard" />
+              )}
+              <label className="min-w-0">
+                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)]">Customers Referred</span>
+                <input
+                  className="mt-1 h-12 w-full rounded-xl border border-[var(--app-border)] bg-[var(--app-input)] px-3 text-[var(--app-text)]"
+                  type="number"
+                  min="0"
+                  value={row.count}
+                  onChange={(event) => {
+                    onUse();
+                    setCustomers((current) => ({ ...current, [row.offer.id]: Math.max(0, Number(event.target.value) || 0) }));
+                  }}
+                />
+              </label>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:col-span-2">
+              <Stat label="Monthly" value={formatCurrency(row.monthly)} icon={BadgeDollarSign} />
+              <Stat label="Yearly" value={formatCurrency(row.yearly)} icon={TrendingUp} />
+            </div>
           </div>
         ))}
       </section>
@@ -1575,38 +1790,64 @@ function EarningsCalculator({ onSummary, onUse }: { onSummary: (summary: Calcula
   );
 }
 
-function UtilityPanel({ page, onCalculator, onOpportunities }: { page: Page; onCalculator: () => void; onOpportunities: () => void }) {
-  const topOffer = offers.reduce((best, offer) => (offer.commissionPercent > best.commissionPercent ? offer : best), offers[0]);
-  const recurringCount = offers.filter((offer) => offer.commissionType === "Recurring").length;
+function UtilityPanel({
+  progress,
+  calculatorSummary,
+  onCalculator,
+  onOpportunities,
+}: {
+  progress: ProgressState;
+  calculatorSummary: CalculatorSummary;
+  onCalculator: () => void;
+  onOpportunities: () => void;
+}) {
   return (
     <aside className="sticky top-0 hidden h-screen w-[320px] shrink-0 border-l border-[var(--app-border)] bg-[var(--app-sidebar)] p-4 xl:block">
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-subtle)]">Workspace</p>
-          <h3 className="mt-2 break-words text-lg font-bold text-[var(--app-text)]">Creator control room</h3>
-          <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">Monitor offers, copy links, and plan content from one Whop-ready interface.</p>
-        </div>
+      <CreatorProgressPanel progress={progress} calculatorSummary={calculatorSummary} onCalculator={onCalculator} onOpportunities={onOpportunities} />
+    </aside>
+  );
+}
 
-        <div className="grid gap-3">
-          <Metric label="Current page" value={page.replace("-", " ")} />
-          <Metric label="Recurring offers" value={recurringCount.toString()} />
-          <Metric label="Highest commission" value={`${topOffer.productName} / ${topOffer.commissionPercent}%`} />
-        </div>
-
-        <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-          <p className="text-sm font-bold text-[var(--app-text)]">Quick actions</p>
-          <div className="mt-3 grid gap-2">
-            <Button icon={Library} label="Browse Opportunities" onClick={onOpportunities} />
-            <Button icon={Calculator} label="Open Calculator" onClick={onCalculator} variant="primary" />
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-          <p className="text-sm font-bold text-[var(--app-text)]">Creator checklist</p>
-          <BulletList items={["Pick one offer", "Open blueprint", "Generate hooks", "Copy link", "Publish short-form test"]} />
+function CreatorProgressPanel({
+  progress,
+  calculatorSummary,
+  onCalculator,
+  onOpportunities,
+}: {
+  progress: ProgressState;
+  calculatorSummary: CalculatorSummary;
+  onCalculator: () => void;
+  onOpportunities: () => void;
+}) {
+  const rankInfo = getRankInfo(progress.xp);
+  const hours = progress.activeSeconds / 3600;
+  return (
+    <section className="app-card rounded-3xl p-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[var(--app-border-strong)] bg-[var(--app-active)] text-[var(--app-accent-text)]">
+          <Trophy className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-subtle)]">Creator Progress</p>
+          <h3 className="mt-1 break-words text-lg font-black text-[var(--app-text)]">{rankInfo.currentRank}</h3>
         </div>
       </div>
-    </aside>
+      <div className="mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-bold text-[var(--app-text)]">{progress.xp} XP</p>
+          <p className="text-xs text-[var(--app-muted)]">{rankInfo.isFinal ? "Top 250 eligible" : `${rankInfo.needed} XP to ${rankInfo.nextRank}`}</p>
+        </div>
+        <XpBar value={rankInfo.progress} />
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+        <Metric label="Learning Time" value={`${hours.toFixed(1)} hrs`} />
+        <Metric label="Monthly Earnings" value={formatCurrency(calculatorSummary.monthly)} />
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+        <Button icon={Library} label="Browse Opportunities" onClick={onOpportunities} />
+        <Button icon={Calculator} label="Open Calculator" onClick={onCalculator} variant="primary" />
+      </div>
+    </section>
   );
 }
 
@@ -1704,7 +1945,7 @@ function Button({
 }) {
   return (
     <motion.button
-      className={`flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition ${
+      className={`flex min-h-10 w-full min-w-0 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition ${
         variant === "primary"
           ? "border-[var(--app-accent)] bg-[var(--app-accent)] text-white shadow-[var(--app-glow)] hover:brightness-110"
           : "border-[var(--app-border-strong)] bg-[var(--app-button)] text-[var(--app-text)] hover:bg-[var(--app-hover)]"
