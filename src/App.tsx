@@ -1,34 +1,63 @@
 import {
   BadgeDollarSign,
   BarChart3,
+  BookOpen,
+  Bot,
+  Calculator,
   Check,
+  ChevronRight,
   Copy,
-  Crown,
-  Flame,
-  Link2,
-  LockKeyhole,
+  ExternalLink,
+  FileText,
+  Filter,
+  Home,
+  Library,
   Menu,
+  Moon,
   Percent,
   Search,
   Sparkles,
+  Sun,
   Target,
   TrendingUp,
   Users,
-  WalletCards,
+  Wand2,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type CommissionType = "Recurring" | "One-Time";
 type Difficulty = "Beginner Friendly" | "Intermediate" | "Advanced";
+type Theme = "light" | "dark";
+type Page =
+  | "dashboard"
+  | "opportunities"
+  | "ai-tools"
+  | "hook-generator"
+  | "calculator";
+type FilterKey = "All" | "Recurring" | "One-Time" | "Beginner Friendly" | "High Commission" | "Trading" | "Software" | "AI";
+type BlueprintTab = "Overview" | "Audience" | "Content Ideas" | "Promotion Strategy" | "Resources";
+
+type OfferPlan = {
+  id: string;
+  name: string;
+  price: string;
+  monthlyPrice: number;
+  commission: string;
+  affiliateLink: string;
+};
 
 type Offer = {
   id: string;
   productName: string;
   affiliateLink: string;
   description: string;
+  category: string;
+  rating?: number;
+  reviews?: number;
+  members?: string;
   price: string;
   commissionPercent: number;
   monthlyCommission: number;
@@ -39,21 +68,22 @@ type Offer = {
   targetAudience: string[];
   exampleHooks: string[];
   promotionNotes: string;
+  pros?: string[];
+  promotionAngles?: string[];
+  contentIdeas?: string[];
+  earningsPotential?: string;
+  marketingChannels?: string[];
+  plans?: OfferPlan[];
 };
 
-const filters = ["All", "Recurring", "One-Time", "Beginner Friendly", "High Commission"];
-const calculatorNavLabel = "💰 Earnings Calculator";
-
-// Admin settings: update these values in code to control the public vault unlock status.
-const vaultProgress = {
-  currentFunds: 0,
-  nextMilestone: 100,
-  nextUnlock: "New Affiliate Opportunity",
-  updateCadence: "Weekly / Milestone Based",
+type AiTool = {
+  name: string;
+  description: string;
+  useCase: string;
+  url: string;
 };
 
-// Admin settings: update this list in code as upcoming categories change.
-const upcomingOpportunities = ["AI Tools", "SaaS Products", "Creator Programs", "High-Ticket Offers"];
+const THEME_STORAGE_KEY = "affiliate-opportunity-vault-theme";
 
 const offers: Offer[] = [
   {
@@ -62,6 +92,7 @@ const offers: Offer[] = [
     affiliateLink: "https://whop.com/toolsuite/buy-vip?a=youthx",
     description:
       "ToolSuite gives users access to 50+ premium tools through one subscription including AI, design, editing, productivity, and creator tools.",
+    category: "AI Tools / Creator Tools",
     price: "$29.95/month",
     commissionPercent: 50,
     monthlyCommission: 14.97,
@@ -77,6 +108,8 @@ const offers: Offer[] = [
       "What if ChatGPT, Canva, and 50+ tools were all in one place?",
     ],
     promotionNotes: "Focus on cost savings, convenience, and creator productivity.",
+    contentIdeas: ["Tool stack comparisons", "Creator workflow demos", "Subscription cost breakdowns", "AI productivity tutorials"],
+    marketingChannels: ["TikTok", "YouTube Shorts", "Instagram Reels", "X", "Reddit"],
   },
   {
     id: "deal-soldier",
@@ -84,6 +117,7 @@ const offers: Offer[] = [
     affiliateLink: "https://whop.com/deal-soldier/deal-soldier?a=youthx",
     description:
       "Deal Soldier helps members find hidden clearance deals at stores like Walmart, Target, Home Depot, and Lowe's so they can resell products for profit.",
+    category: "Reselling / Side Hustle",
     price: "$44/month",
     commissionPercent: 30,
     monthlyCommission: 13.2,
@@ -99,81 +133,265 @@ const offers: Offer[] = [
       "The side hustle nobody is talking about.",
     ],
     promotionNotes: "Focus on reselling, flipping products, and finding hidden deals.",
+    contentIdeas: ["Clearance deal breakdowns", "Flip margin examples", "Store walkthrough content", "Beginner reseller checklists"],
+    marketingChannels: ["TikTok", "Facebook Groups", "YouTube Shorts", "Reddit"],
+  },
+  {
+    id: "friends-family-tickets",
+    productName: "Friends and Family x Tickets",
+    affiliateLink: "https://whop.com/fnfcommunity/concert-event-tickets?a=youthx",
+    description:
+      "Friends and Family is a ticket reselling community for people interested in concerts, events, collectibles, resale opportunities, and casual flipping.",
+    category: "Reselling / Tickets",
+    rating: 4.9,
+    reviews: 429,
+    price: "$50/month",
+    commissionPercent: 20,
+    monthlyCommission: 10,
+    commissionType: "Recurring",
+    estimatedEarnings: "$10/month per active customer",
+    difficulty: "Beginner Friendly",
+    bestPlatforms: ["TikTok", "YouTube Shorts", "Instagram Reels", "Facebook Groups", "Reddit"],
+    targetAudience: ["Ticket Resellers", "Event Fans", "Side Hustlers", "Collectors", "Casual Flippers"],
+    exampleHooks: [
+      "Concert tickets can be a real resale opportunity if you know what to look for.",
+      "Most people only buy tickets. Some people learn how the resale market works.",
+      "This is a beginner-friendly way to study event and ticket flipping.",
+      "If you already follow concerts and events, this side hustle may fit your interests.",
+    ],
+    promotionNotes:
+      "Focus on ticket reselling education, event demand, collectibles, and casual flipping. Avoid guaranteed profit claims and keep messaging practical.",
+    contentIdeas: ["Event demand breakdowns", "Ticket resale basics", "Collector market explainers", "Concert flipping case studies"],
+    marketingChannels: ["TikTok", "Instagram Reels", "Facebook Groups", "Reddit"],
+  },
+  {
+    id: "skylit",
+    productName: "Skylit",
+    affiliateLink: "https://whop.com/heatseeker/community-access-ae?a=youthx",
+    description:
+      "Skylit is a trading education and community offer for people who want market structure guidance, trading frameworks, and a more serious skill-building environment.",
+    category: "Trading",
+    rating: 4.8,
+    reviews: 358,
+    price: "Multiple plans",
+    commissionPercent: 15,
+    monthlyCommission: 15,
+    commissionType: "Recurring",
+    estimatedEarnings: "$15.00-$104.85/month per active customer",
+    difficulty: "Intermediate",
+    bestPlatforms: ["YouTube", "TikTok", "Instagram Reels", "X", "Discord"],
+    targetAudience: ["Aspiring Traders", "Trading Students", "Side Hustlers", "Market Learners", "Finance Creators"],
+    exampleHooks: [
+      "Most traders lose because they never build a repeatable process.",
+      "This is what a serious trading community should actually include.",
+      "If you are learning trading alone, this may save you months.",
+      "The difference between signals and real trading education.",
+    ],
+    pros: [
+      "Multiple plan levels for different buyer intent.",
+      "Trading community angle gives creators several content paths.",
+      "High-ticket Pro plan creates stronger upside per referral.",
+    ],
+    promotionNotes:
+      "Promote Skylit responsibly. Focus on education, discipline, community, risk management, and skill development. Avoid income guarantees or unrealistic trading claims.",
+    promotionAngles: [
+      "Premium trading education for people who want structure instead of random tips.",
+      "Community-first learning for traders who need feedback, accountability, and better routines.",
+      "Position the offer as a serious next step after free YouTube trading content.",
+      "Highlight process, risk management, and consistency over hype.",
+    ],
+    contentIdeas: [
+      "Break down common beginner trading mistakes.",
+      "Compare free trading content vs guided community learning.",
+      "Post market routine checklists.",
+      "Share risk-management reminders and trading psychology lessons.",
+    ],
+    earningsPotential:
+      "At 15% recurring commission, earnings scale with plan price and retention. Community Access pays $15.00, Initiate pays $44.85, and Pro pays $104.85 per active customer monthly.",
+    marketingChannels: ["YouTube long-form", "YouTube Shorts", "TikTok", "Instagram Reels", "X threads", "Discord communities"],
+    plans: [
+      {
+        id: "skylit-community",
+        name: "Community Access",
+        price: "$99.99/month",
+        monthlyPrice: 99.99,
+        commission: "15% recurring",
+        affiliateLink: "https://whop.com/heatseeker/community-access-ae?a=youthx",
+      },
+      {
+        id: "skylit-initiate",
+        name: "Initiate",
+        price: "$299/month",
+        monthlyPrice: 299,
+        commission: "15% recurring",
+        affiliateLink: "https://whop.com/heatseeker/heatseeker-initiate?a=youthx",
+      },
+      {
+        id: "skylit-pro",
+        name: "Pro",
+        price: "$699/month",
+        monthlyPrice: 699,
+        commission: "15% recurring",
+        affiliateLink: "https://whop.com/heatseeker/heatseeker?a=youthx",
+      },
+    ],
+  },
+  {
+    id: "swift-algo-indicator",
+    productName: "Swift Algo Indicator",
+    affiliateLink: "https://whop.com/swift-algo/swift-algo?a=youthx",
+    description:
+      "Swift Algo Indicator provides traders with advanced trading signals, buy and sell indicators, market analysis tools, and educational resources designed to help traders make better decisions.",
+    category: "Trading / Signals",
+    rating: 4.7,
+    reviews: 129,
+    members: "2066+",
+    price: "$67/month",
+    commissionPercent: 30,
+    monthlyCommission: 20.1,
+    commissionType: "Recurring",
+    estimatedEarnings: "$20.10/month per active customer",
+    difficulty: "Intermediate",
+    bestPlatforms: ["YouTube", "TikTok", "Instagram Reels", "X", "Discord"],
+    targetAudience: ["Day traders", "Swing traders", "Forex traders", "Options traders", "Crypto traders"],
+    exampleHooks: [
+      "This indicator is built for traders who want cleaner buy and sell signals.",
+      "Stop guessing entries without a repeatable trading framework.",
+      "A trading signal tool is only useful when you understand the setup behind it.",
+      "Here is how traders use indicators alongside market analysis.",
+    ],
+    pros: [
+      "Advanced buy and sell indicators for active traders.",
+      "Market analysis tools that support trade planning.",
+      "Educational resources for improving decision-making.",
+      "Recurring commission with a clear monthly price point.",
+    ],
+    contentIdeas: ["Trading signal breakdowns", "Before/after trade examples", "Market analysis videos", "Trading strategy content"],
+    promotionAngles: [
+      "Position Swift Algo as a decision-support tool, not a guaranteed profit system.",
+      "Explain how signals, analysis, and education can work together in a trading routine.",
+      "Create content around responsible trade planning and risk management.",
+    ],
+    earningsPotential:
+      "$20.10/month per active customer. Ten active referrals would estimate $201/month, or $2,412/year before churn.",
+    marketingChannels: ["YouTube", "TikTok", "Instagram Reels", "X threads", "Discord communities"],
+    promotionNotes:
+      "Focus on trading education, signal clarity, decision support, and risk-aware content. Avoid guaranteed income or guaranteed trading result claims.",
   },
 ];
 
-const averageCommission = Math.round(
-  offers.reduce((total, offer) => total + offer.commissionPercent, 0) / offers.length,
-);
-
-const stats = [
-  { label: "Current Opportunities", value: offers.length.toString(), icon: WalletCards },
-  { label: "Next Unlock", value: `$${vaultProgress.nextMilestone}`, icon: Target },
-  { label: "Update Cadence", value: vaultProgress.updateCadence, icon: TrendingUp },
-  { label: "Average Commission", value: `${averageCommission}%`, icon: Percent },
+const aiTools: AiTool[] = [
+  { name: "ChatGPT", description: "AI assistant for scripts, research, workflows, and offer positioning.", useCase: "Prompt writing and content systems", url: "https://chatgpt.com" },
+  { name: "Claude", description: "Long-form writing assistant for strategy docs, scripts, and analysis.", useCase: "Deep writing and blueprint drafting", url: "https://claude.ai" },
+  { name: "Gemini", description: "Google AI assistant for research, planning, and creative workflows.", useCase: "Research and campaign ideation", url: "https://gemini.google.com" },
+  { name: "Perplexity", description: "AI answer engine for quick research and source discovery.", useCase: "Market and competitor research", url: "https://www.perplexity.ai" },
+  { name: "ElevenLabs", description: "Voice generation for narrations, ads, and short-form content.", useCase: "Voiceovers and creator assets", url: "https://elevenlabs.io" },
+  { name: "Canva", description: "Design platform for thumbnails, reels, carousels, and promo graphics.", useCase: "Affiliate creative assets", url: "https://www.canva.com" },
+  { name: "CapCut", description: "Video editor for short-form affiliate and organic content.", useCase: "TikTok and Reels editing", url: "https://www.capcut.com" },
+  { name: "Descript", description: "Transcript-first editor for podcasts, walkthroughs, and video ads.", useCase: "Editing and captions", url: "https://www.descript.com" },
 ];
 
-const particles = Array.from({ length: 16 }, (_, index) => ({
-  id: index,
-  left: `${(index * 37) % 100}%`,
-  top: `${(index * 43) % 100}%`,
-  size: 2 + (index % 3),
-  delay: index * 0.38,
-}));
+const filters: FilterKey[] = ["All", "Recurring", "One-Time", "Beginner Friendly", "High Commission", "Trading", "Software", "AI"];
+const featuredIds = ["skylit", "swift-algo-indicator", "toolsuite", "deal-soldier", "friends-family-tickets"];
+const navGroups: Array<{ title: string; items: Array<{ label: string; page: Page; filter?: FilterKey; icon: LucideIcon }> }> = [
+  { title: "Dashboard", items: [{ label: "Dashboard", page: "dashboard", icon: Home }] },
+  {
+    title: "Opportunities",
+    items: [
+      { label: "All Opportunities", page: "opportunities", filter: "All", icon: Library },
+      { label: "Recurring", page: "opportunities", filter: "Recurring", icon: TrendingUp },
+      { label: "One-Time", page: "opportunities", filter: "One-Time", icon: BadgeDollarSign },
+      { label: "Beginner Friendly", page: "opportunities", filter: "Beginner Friendly", icon: Users },
+      { label: "High Commission", page: "opportunities", filter: "High Commission", icon: Percent },
+    ],
+  },
+  {
+    title: "Tools",
+    items: [
+      { label: "AI Tools Vault", page: "ai-tools", icon: Bot },
+      { label: "Hook Generator", page: "hook-generator", icon: Wand2 },
+    ],
+  },
+  {
+    title: "Personal",
+    items: [{ label: "Earnings Calculator", page: "calculator", icon: Calculator }],
+  },
+];
+
+function getSystemTheme(): Theme {
+  if (typeof window === "undefined") return "dark";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function getInitialTheme(): Theme {
+  if (typeof window === "undefined") return "dark";
+  const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
+  const whopTheme =
+    document.documentElement.dataset.theme ||
+    document.documentElement.getAttribute("data-whop-theme") ||
+    document.body?.dataset.theme ||
+    document.body?.getAttribute("data-whop-theme");
+  return whopTheme === "light" || whopTheme === "dark" ? whopTheme : getSystemTheme();
+}
 
 function App() {
-  const [selectedFilter, setSelectedFilter] = useState("All");
-  const [activeView, setActiveView] = useState<"offers" | "calculator">("offers");
-  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [page, setPage] = useState<Page>("dashboard");
+  const [activeFilter, setActiveFilter] = useState<FilterKey>("All");
   const [query, setQuery] = useState("");
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [blueprintTab, setBlueprintTab] = useState<BlueprintTab>("Overview");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const visibleOffers = useMemo(() => {
-    const term = query.trim().toLowerCase();
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
 
-    return offers.filter((offer) => {
-      const matchesFilter =
-        selectedFilter === "All" ||
-        offer.commissionType === selectedFilter ||
-        offer.difficulty === selectedFilter ||
-        (selectedFilter === "High Commission" && offer.commissionPercent >= 40);
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => {
+      if (!window.localStorage.getItem(THEME_STORAGE_KEY)) setTheme(media.matches ? "dark" : "light");
+    };
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
-      const searchable = [
-        offer.productName,
-        offer.description,
-        offer.price,
-        offer.commissionType,
-        offer.difficulty,
-        offer.bestPlatforms.join(" "),
-        offer.targetAudience.join(" "),
-      ]
-        .join(" ")
-        .toLowerCase();
+  const filteredOffers = useMemo(() => filterOffers(offers, activeFilter, query), [activeFilter, query]);
 
-      return matchesFilter && (!term || searchable.includes(term));
-    });
-  }, [query, selectedFilter]);
+  const openPage = (nextPage: Page, nextFilter?: FilterKey) => {
+    setPage(nextPage);
+    if (nextFilter) setActiveFilter(nextFilter);
+    setSidebarOpen(false);
+  };
+
+  const openBlueprint = (offer: Offer) => {
+    setSelectedOffer(offer);
+    setBlueprintTab("Overview");
+  };
 
   const copyAffiliateLink = (link: string, id: string) => {
     const textArea = document.createElement("textarea");
     textArea.value = link;
+    textArea.setAttribute("readonly", "");
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    textArea.style.top = "-9999px";
     document.body.appendChild(textArea);
-
     textArea.focus();
     textArea.select();
-
     try {
       document.execCommand("copy");
       setCopiedId(id);
-      setToast("Affiliate link copied ✅");
-
-      setTimeout(() => {
+      setToast("Affiliate link copied");
+      window.setTimeout(() => {
         setCopiedId(null);
         setToast(null);
-      }, 2000);
-    } catch (err) {
+      }, 1800);
+    } catch {
       prompt("Copy this affiliate link:", link);
     } finally {
       document.body.removeChild(textArea);
@@ -181,21 +399,14 @@ function App() {
   };
 
   return (
-    <motion.main
-      className="vault-noise relative min-h-screen overflow-hidden bg-vault-black px-4 py-4 text-vault-cream sm:px-6 lg:px-8"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.65, ease: "easeOut" }}
-    >
-      <BackgroundAura />
-
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-2rem)] max-w-[1480px] gap-4">
+    <motion.main className="app-shell min-h-screen overflow-x-hidden bg-[var(--app-bg)] text-[var(--app-text)]" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <div className="mx-auto flex min-h-screen w-full max-w-[1600px]">
         <AnimatePresence>
           {sidebarOpen && (
             <motion.button
-              className="fixed inset-0 z-30 bg-black/75 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-30 bg-[var(--app-overlay)] backdrop-blur-sm lg:hidden"
+              aria-label="Close menu"
               onClick={() => setSidebarOpen(false)}
-              aria-label="Close menu overlay"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -203,859 +414,810 @@ function App() {
           )}
         </AnimatePresence>
 
-        <Sidebar
-          open={sidebarOpen}
-          selectedFilter={selectedFilter}
-          activeView={activeView}
-          onClose={() => setSidebarOpen(false)}
-          onSelectFilter={(filter) => {
-            setActiveView("offers");
-            setSelectedFilter(filter);
-            setSidebarOpen(false);
-          }}
-          onSelectCalculator={() => {
-            setActiveView("calculator");
-            setSidebarOpen(false);
-          }}
-        />
+        <Sidebar page={page} activeFilter={activeFilter} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onNavigate={openPage} />
 
-        <section className="flex min-w-0 flex-1 flex-col gap-4">
-          {activeView === "offers" ? (
-            <>
-              <Hero query={query} onQueryChange={setQuery} onMenuClick={() => setSidebarOpen(true)} />
-              <StatsGrid />
-              <FilterBar selectedFilter={selectedFilter} onSelectFilter={setSelectedFilter} />
+        <section className="min-w-0 flex-1 px-3 py-3 sm:px-5 lg:px-6">
+          <Topbar
+            page={page}
+            query={query}
+            theme={theme}
+            onMenu={() => setSidebarOpen(true)}
+            onQuery={setQuery}
+            onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+          />
 
-              <OpportunityGrid
-                offers={visibleOffers}
+          <div className="mt-4">
+            {page === "dashboard" && (
+              <DashboardPage
+                onBrowse={() => openPage("opportunities", "All")}
+                onCalculator={() => openPage("calculator")}
+                onBlueprint={openBlueprint}
+                onCopy={copyAffiliateLink}
                 copiedId={copiedId}
-                onViewBlueprint={setSelectedOffer}
-                onCopyLink={(offer) => copyAffiliateLink(offer.affiliateLink, offer.id)}
               />
-            </>
-          ) : (
-            <EarningsDashboard onMenuClick={() => setSidebarOpen(true)} />
-          )}
+            )}
+            {page === "opportunities" && (
+              <OpportunitiesPage
+                filter={activeFilter}
+                query={query}
+                offers={filteredOffers}
+                copiedId={copiedId}
+                onFilter={setActiveFilter}
+                onBlueprint={openBlueprint}
+                onCopy={copyAffiliateLink}
+              />
+            )}
+            {page === "ai-tools" && <AiToolsPage />}
+            {page === "hook-generator" && <HookGeneratorPage onCopyAll={(text) => copyAffiliateLink(text, "hooks")} copied={copiedId === "hooks"} />}
+            {page === "calculator" && <EarningsCalculator />}
+          </div>
         </section>
+        <UtilityPanel page={page} onCalculator={() => openPage("calculator")} onOpportunities={() => openPage("opportunities", "All")} />
       </div>
-
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            className="fixed right-4 top-4 z-[60] rounded-xl border border-vault-gold/30 bg-black/85 px-4 py-3 text-sm font-semibold text-vault-cream shadow-gold backdrop-blur-md sm:right-6 sm:top-6"
-            initial={{ y: -18, opacity: 0, scale: 0.96 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: -12, opacity: 0, scale: 0.96 }}
-            transition={{ type: "spring", stiffness: 260, damping: 22 }}
-          >
-            {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {selectedOffer && (
           <BlueprintModal
             offer={selectedOffer}
-            copied={copiedId === selectedOffer.id}
+            activeTab={blueprintTab}
+            copiedId={copiedId}
+            onTab={setBlueprintTab}
             onClose={() => setSelectedOffer(null)}
-            onCopyLink={() => copyAffiliateLink(selectedOffer.affiliateLink, selectedOffer.id)}
+            onCopy={copyAffiliateLink}
           />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            className="fixed right-4 top-4 z-[70] max-w-[calc(100vw-2rem)] rounded-xl border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-4 py-3 text-sm font-semibold text-[var(--app-text)] shadow-[var(--app-glow)]"
+            initial={{ y: -16, opacity: 0, scale: 0.96 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -10, opacity: 0, scale: 0.96 }}
+          >
+            {toast}
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.main>
   );
 }
 
-function BackgroundAura() {
+function filterOffers(source: Offer[], filter: FilterKey, search: string) {
+  const term = search.trim().toLowerCase();
+  return source.filter((offer) => {
+    const matchesFilter =
+      filter === "All" ||
+      offer.commissionType === filter ||
+      offer.difficulty === filter ||
+      (filter === "High Commission" && offer.commissionPercent >= 40) ||
+      (filter === "Trading" && offer.category.toLowerCase().includes("trading")) ||
+      (filter === "Software" && /software|creator|tools/i.test(offer.category)) ||
+      (filter === "AI" && /ai|toolsuite/i.test(`${offer.productName} ${offer.category}`));
+
+    const haystack = [offer.productName, offer.description, offer.category, offer.price, offer.difficulty, offer.bestPlatforms.join(" "), offer.targetAudience.join(" ")]
+      .join(" ")
+      .toLowerCase();
+    return matchesFilter && (!term || haystack.includes(term));
+  });
+}
+
+function Sidebar({
+  page,
+  activeFilter,
+  open,
+  onClose,
+  onNavigate,
+}: {
+  page: Page;
+  activeFilter: FilterKey;
+  open: boolean;
+  onClose: () => void;
+  onNavigate: (page: Page, filter?: FilterKey) => void;
+}) {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <motion.div
-        className="absolute left-[8%] top-[5%] h-80 w-80 rounded-full bg-vault-magenta/20 blur-3xl"
-        animate={{ scale: [1, 1.18, 1], opacity: [0.3, 0.52, 0.3] }}
-        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute right-[8%] top-[18%] h-80 w-80 rounded-full bg-vault-gold/14 blur-3xl"
-        animate={{ x: [0, -28, 0], y: [0, 18, 0], opacity: [0.22, 0.42, 0.22] }}
-        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute bottom-[-13%] left-[35%] h-96 w-96 rounded-full bg-vault-rose/10 blur-3xl"
-        animate={{ scale: [1, 1.12, 1], opacity: [0.18, 0.34, 0.18] }}
-        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
-      />
-      {particles.map((particle) => (
-        <motion.span
-          key={particle.id}
-          className="absolute rounded-full bg-vault-gold/50 shadow-gold"
-          style={{ left: particle.left, top: particle.top, width: particle.size, height: particle.size }}
-          animate={{ y: [0, -22, 0], opacity: [0.12, 0.7, 0.12] }}
-          transition={{ duration: 4.5 + (particle.id % 4), repeat: Infinity, delay: particle.delay }}
-        />
-      ))}
+    <aside
+      className={`fixed inset-y-0 left-0 z-40 w-[min(304px,88vw)] border-r border-[var(--app-border)] bg-[var(--app-sidebar)] p-4 shadow-[var(--app-shadow)] transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
+        open ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <button className="flex min-w-0 items-center gap-3 text-left" onClick={() => onNavigate("dashboard")}>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--app-accent)] text-white shadow-[var(--app-glow)]">
+            <Sparkles className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block break-words text-sm font-bold text-[var(--app-text)]">Affiliate Vault</span>
+            <span className="block break-words text-xs text-[var(--app-muted)]">Learn2Earn x Whop</span>
+          </span>
+        </button>
+        <button className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--app-border)] text-[var(--app-muted)] lg:hidden" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <nav className="mt-6 flex h-[calc(100vh-6rem)] flex-col space-y-5 overflow-y-auto pr-1">
+        {navGroups.map((group) => (
+          <div key={group.title}>
+            <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-subtle)]">{group.title}</p>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const active = page === item.page && (!item.filter || item.filter === activeFilter);
+                return <NavButton key={`${item.page}-${item.label}`} item={item} active={active} onClick={() => onNavigate(item.page, item.filter)} />;
+              })}
+            </div>
+          </div>
+        ))}
+        <div className="mt-auto rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--app-accent)] text-xs font-bold text-white">L2</span>
+            <div className="min-w-0">
+              <p className="break-words text-sm font-bold text-[var(--app-text)]">Learn2Earn Member</p>
+              <p className="break-words text-xs text-[var(--app-muted)]">Whop creator workspace</p>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </aside>
+  );
+}
+
+function NavButton({
+  item,
+  active,
+  onClick,
+}: {
+  item: { label: string; icon: LucideIcon };
+  active: boolean;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <button
+      className={`flex min-h-10 w-full min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm font-medium transition ${
+        active
+          ? "border-[var(--app-border-strong)] bg-[var(--app-active)] text-[var(--app-text)] shadow-[var(--app-glow)]"
+          : "border-transparent text-[var(--app-muted)] hover:border-[var(--app-border)] hover:bg-[var(--app-hover)] hover:text-[var(--app-text)]"
+      }`}
+      onClick={onClick}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="min-w-0 flex-1 break-words">{item.label}</span>
+    </button>
+  );
+}
+
+function Topbar({
+  page,
+  query,
+  theme,
+  onMenu,
+  onQuery,
+  onToggleTheme,
+}: {
+  page: Page;
+  query: string;
+  theme: Theme;
+  onMenu: () => void;
+  onQuery: (value: string) => void;
+  onToggleTheme: () => void;
+}) {
+  const showSearch = page === "opportunities";
+  return (
+    <header className="app-card sticky top-3 z-20 flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
+        <button className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--app-border)] bg-[var(--app-button)] text-[var(--app-text)] lg:hidden" onClick={onMenu}>
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="min-w-0">
+          <p className="break-words text-sm font-semibold text-[var(--app-text)]">Affiliate Opportunity Vault</p>
+          <p className="break-words text-xs text-[var(--app-muted)]">Creator-focused affiliate operating system</p>
+        </div>
+      </div>
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+        {showSearch && (
+          <label className="relative min-w-0 sm:w-[340px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--app-muted)]" />
+            <input
+              className="h-10 w-full rounded-xl border border-[var(--app-border)] bg-[var(--app-input)] pl-9 pr-3 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-border-strong)]"
+              value={query}
+              onChange={(event) => onQuery(event.target.value)}
+              placeholder="Search offers, platforms, categories..."
+            />
+          </label>
+        )}
+        <Button icon={theme === "dark" ? Sun : Moon} label={theme === "dark" ? "Light" : "Dark"} onClick={onToggleTheme} />
+      </div>
+    </header>
+  );
+}
+
+function DashboardPage({
+  onBrowse,
+  onCalculator,
+  onBlueprint,
+  onCopy,
+  copiedId,
+}: {
+  onBrowse: () => void;
+  onCalculator: () => void;
+  onBlueprint: (offer: Offer) => void;
+  onCopy: (link: string, id: string) => void;
+  copiedId: string | null;
+}) {
+  const highest = Math.max(...offers.map((offer) => offer.commissionPercent));
+  const potential = offers.reduce((total, offer) => total + offer.monthlyCommission, 0);
+  const featured = featuredIds.map((id) => offers.find((offer) => offer.id === id)).filter(Boolean) as Offer[];
+  return (
+    <div className="space-y-4">
+      <section className="app-card overflow-hidden rounded-3xl p-5 sm:p-8">
+        <div className="max-w-3xl">
+          <span className="inline-flex rounded-full border border-[var(--app-border-strong)] bg-[var(--app-active)] px-3 py-1 text-xs font-semibold text-[var(--app-accent-text)]">
+            Built for Whop creators
+          </span>
+          <h1 className="mt-4 break-words text-4xl font-bold tracking-tight text-[var(--app-text)] sm:text-6xl">Affiliate Opportunity Vault</h1>
+          <p className="mt-4 max-w-2xl break-words text-base leading-7 text-[var(--app-muted)]">
+            Discover vetted affiliate opportunities, AI tools, and promotion blueprints.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Button icon={Library} label="Browse Opportunities" onClick={onBrowse} variant="primary" />
+            <Button icon={Calculator} label="Open Earnings Calculator" onClick={onCalculator} />
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="Total Opportunities" value={offers.length.toString()} icon={Library} />
+        <Stat label="Total Categories" value={new Set(offers.map((offer) => offer.category)).size.toString()} icon={Filter} />
+        <Stat label="Highest Commission" value={`${highest}%`} icon={Percent} />
+        <Stat label="Potential Earnings" value={formatCurrency(potential)} icon={TrendingUp} />
+      </section>
+
+      <section className="app-card rounded-3xl p-4 sm:p-5">
+        <SectionTitle eyebrow="Featured Opportunities" title="Start with proven creator-friendly offers" />
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {featured.map((offer) => (
+            <OfferCard key={offer.id} offer={offer} copied={copiedId === offer.id} onBlueprint={() => onBlueprint(offer)} onCopy={() => onCopy(offer.affiliateLink, offer.id)} />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
 
-type SidebarProps = {
-  open: boolean;
-  selectedFilter: string;
-  activeView: "offers" | "calculator";
-  onClose: () => void;
-  onSelectFilter: (filter: string) => void;
-  onSelectCalculator: () => void;
-};
-
-function Sidebar({ open, selectedFilter, activeView, onClose, onSelectFilter, onSelectCalculator }: SidebarProps) {
-  return (
-    <motion.aside
-      className={`glass-panel fixed inset-y-4 left-4 z-40 w-[286px] rounded-xl p-4 transition-transform duration-300 lg:static lg:translate-x-0 ${
-        open ? "translate-x-0" : "-translate-x-[calc(100%+1rem)]"
-      }`}
-      initial={{ opacity: 0, x: -24 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.42, ease: "easeOut" }}
-    >
-      <div className="flex items-center justify-between">
-        <button className="flex items-center gap-3 text-left" onClick={() => onSelectFilter("All")}>
-          <span className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-vault-magenta via-vault-rose to-vault-gold shadow-glow">
-            <Crown className="h-5 w-5 text-vault-black" />
-          </span>
-          <span>
-            <span className="block text-lg font-semibold tracking-wide text-vault-cream">Affiliate Vault</span>
-            <span className="block text-xs uppercase tracking-[0.22em] text-vault-gold">Learn2Earn Academy</span>
-          </span>
-        </button>
-
-        <button
-          className="grid h-9 w-9 place-items-center rounded-lg text-vault-muted hover:bg-vault-cream/10 lg:hidden"
-          onClick={onClose}
-          aria-label="Close sidebar"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
-
-      <nav className="mt-8 space-y-2">
-        {filters.map((filter) => (
-          <SidebarButton
-            key={filter}
-            label={filter}
-            icon={filterIcon(filter)}
-            active={activeView === "offers" && selectedFilter === filter}
-            onClick={() => onSelectFilter(filter)}
-          />
-        ))}
-        <SidebarButton
-          label={calculatorNavLabel}
-          icon={WalletCards}
-          active={activeView === "calculator"}
-          onClick={onSelectCalculator}
-        />
-      </nav>
-
-      <div className="mt-8 rounded-xl border border-vault-gold/20 bg-vault-gold/[0.055] p-4 premium-ring">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Flame className="h-4 w-4 text-vault-gold" />
-          Marketplace Focus
-        </div>
-        <p className="mt-3 text-sm leading-6 text-vault-muted">
-          Curated opportunities only. Clear commissions. Clean promotion blueprints.
-        </p>
-      </div>
-    </motion.aside>
-  );
-}
-
-function filterIcon(filter: string): LucideIcon {
-  const icons: Record<string, LucideIcon> = {
-    All: BarChart3,
-    Recurring: TrendingUp,
-    "One-Time": BadgeDollarSign,
-    "Beginner Friendly": Users,
-    "High Commission": Percent,
-  };
-
-  return icons[filter] ?? BarChart3;
-}
-
-type HeroProps = {
+function OpportunitiesPage({
+  filter,
+  query,
+  offers: visibleOffers,
+  copiedId,
+  onFilter,
+  onBlueprint,
+  onCopy,
+}: {
+  filter: FilterKey;
   query: string;
-  onQueryChange: (value: string) => void;
-  onMenuClick: () => void;
-};
-
-function Hero({ query, onQueryChange, onMenuClick }: HeroProps) {
-  return (
-    <motion.header
-      className="glass-panel relative overflow-hidden rounded-xl p-5 sm:p-7"
-      initial={{ y: 18, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.55, ease: "easeOut" }}
-    >
-      <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,47,179,0.16),transparent_45%,rgba(214,168,79,0.12))]" />
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-4xl">
-          <div className="flex items-center gap-3">
-            <button
-              className="grid h-10 w-10 place-items-center rounded-lg border border-vault-magenta/25 bg-vault-cream/5 text-vault-cream lg:hidden"
-              onClick={onMenuClick}
-              aria-label="Open sidebar"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <span className="inline-flex items-center gap-2 rounded-full border border-vault-gold/25 bg-vault-gold/10 px-3 py-1 text-xs uppercase tracking-[0.22em] text-vault-gold">
-              <Sparkles className="h-3.5 w-3.5" />
-              Premium Affiliate Marketplace
-            </span>
-          </div>
-
-          <h1 className="mt-5 max-w-4xl text-4xl font-semibold leading-[0.98] tracking-tight text-vault-cream sm:text-5xl lg:text-6xl">
-            💸 Affiliate Opportunity Vault
-          </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-vault-muted">
-            Curated affiliate programs, commissions, assets, and promotion strategies for Learn2Earn members.
-          </p>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-vault-muted/90">
-            Browse high-quality affiliate opportunities, view commission structures, access blueprints, and find programs worth promoting.
-          </p>
-        </div>
-
-        <motion.div
-          className="hidden rounded-xl border border-vault-gold/25 bg-black/35 px-5 py-4 shadow-gold lg:block"
-          animate={{
-            boxShadow: [
-              "0 0 20px rgba(214,168,79,0.12)",
-              "0 0 42px rgba(255,47,179,0.22)",
-              "0 0 20px rgba(214,168,79,0.12)",
-            ],
-          }}
-          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <div className="flex items-center gap-2 text-sm font-semibold text-vault-gold">
-            <WalletCards className="h-4 w-4" />
-            Commission Desk
-          </div>
-          <p className="mt-2 max-w-[230px] text-sm leading-5 text-vault-muted">
-            View payouts, study blueprints, and launch cleaner campaigns.
-          </p>
-        </motion.div>
-      </div>
-
-      <div className="relative mt-6 max-w-2xl">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-vault-gold" />
-        <input
-          className="h-14 w-full rounded-xl border border-vault-magenta/20 bg-black/45 pl-12 pr-4 text-sm text-vault-cream outline-none transition placeholder:text-vault-muted/70 focus:border-vault-magenta/70 focus:shadow-glow"
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Search opportunities, audiences, platforms..."
-        />
-      </div>
-    </motion.header>
-  );
-}
-
-function StatsGrid() {
-  return (
-    <motion.section
-      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-      variants={{ show: { transition: { staggerChildren: 0.08 } } }}
-      initial="hidden"
-      animate="show"
-    >
-      {stats.map((stat) => (
-        <motion.div
-          key={stat.label}
-          className="glass-panel rounded-xl p-4 premium-ring"
-          variants={{ hidden: { y: 18, opacity: 0 }, show: { y: 0, opacity: 1 } }}
-          whileHover={{ y: -4 }}
-          transition={{ type: "spring", stiffness: 230, damping: 24 }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-vault-muted">{stat.label}</p>
-              <p className="mt-2 text-3xl font-semibold text-vault-cream">{stat.value}</p>
-            </div>
-            <span className="grid h-11 w-11 place-items-center rounded-xl border border-vault-gold/25 bg-vault-gold/10 text-vault-gold shadow-gold">
-              <stat.icon className="h-5 w-5" />
-            </span>
-          </div>
-        </motion.div>
-      ))}
-    </motion.section>
-  );
-}
-
-type FilterBarProps = {
-  selectedFilter: string;
-  onSelectFilter: (filter: string) => void;
-};
-
-function FilterBar({ selectedFilter, onSelectFilter }: FilterBarProps) {
-  return (
-    <motion.div
-      className="flex gap-2 overflow-x-auto pb-1"
-      initial={{ y: 14, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ delay: 0.12 }}
-    >
-      {filters.map((filter) => (
-        <button
-          key={filter}
-          className={`shrink-0 rounded-full border px-4 py-2 text-sm transition ${
-            selectedFilter === filter
-              ? "border-vault-magenta/70 bg-vault-magenta/18 text-vault-cream shadow-glow"
-              : "border-vault-cream/10 bg-vault-cream/[0.035] text-vault-muted hover:border-vault-gold/45 hover:text-vault-cream"
-          }`}
-          onClick={() => onSelectFilter(filter)}
-        >
-          {filter}
-        </button>
-      ))}
-    </motion.div>
-  );
-}
-
-type OpportunityGridProps = {
   offers: Offer[];
   copiedId: string | null;
-  onViewBlueprint: (offer: Offer) => void;
-  onCopyLink: (offer: Offer) => void;
-};
-
-function OpportunityGrid({ offers, copiedId, onViewBlueprint, onCopyLink }: OpportunityGridProps) {
+  onFilter: (filter: FilterKey) => void;
+  onBlueprint: (offer: Offer) => void;
+  onCopy: (link: string, id: string) => void;
+}) {
   return (
-    <section className="glass-panel min-h-[500px] rounded-xl p-4 sm:p-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-vault-gold">Opportunity Board</p>
-          <h2 className="mt-1 text-xl font-semibold text-vault-cream">Affiliate Offers</h2>
+    <div className="space-y-4">
+      <section className="app-card rounded-3xl p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <SectionTitle eyebrow="Opportunities" title="Vetted affiliate marketplace" description="Filter by payout type, skill level, category, or creator workflow." />
+          <p className="text-sm text-[var(--app-muted)]">{visibleOffers.length} matching offers {query ? `for "${query}"` : ""}</p>
         </div>
-        <span className="rounded-full border border-vault-gold/25 bg-vault-gold/10 px-3 py-1 text-sm text-vault-gold">
-          {offers.length} available
-        </span>
-      </div>
-
-      <motion.div
-        className="mt-5 grid gap-4 lg:grid-cols-2"
-        variants={{ show: { transition: { staggerChildren: 0.08 } } }}
-        initial="hidden"
-        animate="show"
-      >
-        {offers.map((offer) => (
-          <OfferCard
-            key={offer.productName}
-            offer={offer}
-            copied={copiedId === offer.id}
-            onViewBlueprint={() => onViewBlueprint(offer)}
-            onCopyLink={() => onCopyLink(offer)}
-          />
-        ))}
-      </motion.div>
-
-      {offers.length === 0 && (
-        <div className="grid min-h-[280px] place-items-center text-center">
-          <div>
-            <Target className="mx-auto h-9 w-9 text-vault-magenta" />
-            <h3 className="mt-3 text-lg font-semibold text-vault-cream">No opportunities found</h3>
-            <p className="mt-1 max-w-sm text-sm text-vault-muted">Try another search term or filter.</p>
-          </div>
-        </div>
-      )}
-
-      <ComingSoonUnlockCard />
-    </section>
-  );
-}
-
-function ComingSoonUnlockCard() {
-  const progressPercent = Math.min(
-    100,
-    Math.round((vaultProgress.currentFunds / vaultProgress.nextMilestone) * 100),
-  );
-
-  return (
-    <motion.article
-      className="mt-5 overflow-hidden rounded-xl border border-vault-magenta/25 bg-black/40 p-5 shadow-glow premium-ring"
-      initial={{ y: 22, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      whileHover={{ y: -4 }}
-      transition={{ type: "spring", stiffness: 220, damping: 24 }}
-    >
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-2xl">
-          <div className="flex items-center gap-3">
-            <motion.span
-              className="grid h-12 w-12 place-items-center rounded-xl border border-vault-gold/25 bg-vault-gold/10 text-vault-gold shadow-gold"
-              animate={{ scale: [1, 1.06, 1], rotate: [0, -4, 0] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+        <div className="mt-5 flex flex-wrap gap-2">
+          {filters.map((item) => (
+            <button
+              key={item}
+              className={`min-h-10 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                filter === item
+                  ? "border-[var(--app-border-strong)] bg-[var(--app-active)] text-[var(--app-text)]"
+                  : "border-[var(--app-border)] bg-[var(--app-button)] text-[var(--app-muted)] hover:text-[var(--app-text)]"
+              }`}
+              onClick={() => onFilter(item)}
             >
-              <LockKeyhole className="h-5 w-5" />
-            </motion.span>
-            <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-vault-gold">Unlock System</p>
-              <h3 className="mt-1 text-2xl font-semibold text-vault-cream">🚀 More Opportunities Coming Soon</h3>
+              {item}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="app-card overflow-hidden rounded-3xl">
+        <div className="hidden grid-cols-[1.35fr_.7fr_.7fr_1fr_.8fr_.9fr_1.2fr] gap-3 border-b border-[var(--app-border)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)] xl:grid">
+          <span>Offer</span>
+          <span>Type</span>
+          <span>Commission</span>
+          <span>Estimated Earnings</span>
+          <span>Difficulty</span>
+          <span>Category</span>
+          <span>Actions</span>
+        </div>
+        <div className="divide-y divide-[var(--app-border)]">
+          {visibleOffers.length ? (
+            visibleOffers.map((offer) => <OfferRow key={offer.id} offer={offer} copied={copiedId === offer.id} onBlueprint={() => onBlueprint(offer)} onCopy={() => onCopy(offer.affiliateLink, offer.id)} />)
+          ) : (
+            <div className="p-8 text-center">
+              <p className="text-lg font-semibold text-[var(--app-text)]">No offers found</p>
+              <p className="mt-2 text-sm text-[var(--app-muted)]">Try a broader filter or search term.</p>
             </div>
-          </div>
-
-          <p className="mt-4 text-sm leading-6 text-vault-muted">
-            New affiliate opportunities will be added weekly OR when the vault reaches the next funding milestone.
-          </p>
-          <p className="mt-3 text-sm font-semibold text-vault-cream">
-            $100 reached = unlock a new curated affiliate opportunity.
-          </p>
+          )}
         </div>
-
-        <div className="w-full rounded-xl border border-vault-cream/10 bg-vault-cream/[0.035] p-4 lg:max-w-md">
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span className="text-vault-muted">Current Vault Funds</span>
-            <span className="font-semibold text-vault-gold">
-              ${vaultProgress.currentFunds} / ${vaultProgress.nextMilestone}
-            </span>
-          </div>
-          <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/60 ring-1 ring-vault-cream/10">
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-vault-gold via-vault-rose to-vault-magenta shadow-gold"
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercent}%` }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            />
-          </div>
-          <p className="mt-3 text-sm text-vault-muted">
-            Next unlock: <span className="font-semibold text-vault-cream">{vaultProgress.nextUnlock}</span>
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {upcomingOpportunities.map((item) => (
-          <div key={item} className="rounded-lg border border-vault-gold/15 bg-vault-gold/[0.055] px-3 py-3 text-sm font-semibold text-vault-gold">
-            {item}
-          </div>
-        ))}
-      </div>
-
-      <p className="mt-4 text-xs leading-5 text-vault-muted">
-        Opportunities are manually curated by Learn2Earn. Quality over quantity.
-      </p>
-    </motion.article>
+      </section>
+    </div>
   );
 }
 
-type OfferCardProps = {
-  offer: Offer;
-  copied: boolean;
-  onViewBlueprint: () => void;
-  onCopyLink: () => void;
-};
-
-function OfferCard({ offer, copied, onViewBlueprint, onCopyLink }: OfferCardProps) {
+function OfferRow({ offer, copied, onBlueprint, onCopy }: { offer: Offer; copied: boolean; onBlueprint: () => void; onCopy: () => void }) {
   return (
-    <motion.article
-      className="rounded-xl border border-vault-cream/10 bg-vault-cream/[0.035] p-5 premium-ring"
-      variants={{ hidden: { y: 22, opacity: 0 }, show: { y: 0, opacity: 1 } }}
-      whileHover={{ y: -7, scale: 1.01 }}
-      transition={{ type: "spring", stiffness: 240, damping: 22 }}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-vault-gold">{offer.commissionType}</p>
-          <h3 className="mt-2 text-2xl font-semibold leading-tight text-vault-cream">{offer.productName}</h3>
-        </div>
-        <div className="rounded-full border border-vault-magenta/25 bg-vault-magenta/12 px-3 py-1 text-sm font-semibold text-vault-rose">
-          {offer.commissionPercent}%
-        </div>
+    <div className="grid min-w-0 gap-3 p-4 xl:grid-cols-[1.35fr_.7fr_.7fr_1fr_.8fr_.9fr_1.2fr] xl:items-center">
+      <div className="min-w-0">
+        <p className="break-words font-semibold text-[var(--app-text)]">{offer.productName}</p>
+        <p className="mt-1 line-clamp-2 break-words text-sm text-[var(--app-muted)]">{offer.description}</p>
+        {offer.rating && <p className="mt-1 text-xs text-[var(--app-subtle)]">{offer.rating.toFixed(1)} rating{offer.reviews ? ` / ${offer.reviews} reviews` : ""}</p>}
+      </div>
+      <MobileLabel label="Type" value={offer.commissionType} />
+      <MobileLabel label="Commission" value={`${offer.commissionPercent}%`} />
+      <MobileLabel label="Estimated Earnings" value={offer.estimatedEarnings} />
+      <MobileLabel label="Difficulty" value={offer.difficulty} />
+      <MobileLabel label="Category" value={offer.category} />
+      <div className="grid min-w-0 gap-2 sm:grid-cols-3 xl:grid-cols-1">
+        <Button icon={Target} label="View Blueprint" onClick={onBlueprint} variant="primary" />
+        <Button icon={copied ? Check : Copy} label={copied ? "Copied" : "Copy Affiliate Link"} onClick={onCopy} />
+        <Button icon={ExternalLink} label="Open Affiliate Link" onClick={() => window.open(offer.affiliateLink, "_blank", "noopener,noreferrer")} />
+      </div>
+    </div>
+  );
+}
+
+function OfferCard({ offer, copied, onBlueprint, onCopy }: { offer: Offer; copied: boolean; onBlueprint: () => void; onCopy: () => void }) {
+  return (
+    <motion.article className="min-w-0 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4" whileHover={{ y: -4 }}>
+      <div className="min-w-0">
+        <p className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-accent-text)]">{offer.category}</p>
+        <h3 className="mt-2 truncate text-xl font-bold text-[var(--app-text)]">{offer.productName}</h3>
+        {offer.rating && <p className="mt-1 truncate text-xs text-[var(--app-muted)]">{offer.rating.toFixed(1)} rating{offer.reviews ? ` / ${offer.reviews} reviews` : ""}</p>}
       </div>
 
-      <p className="mt-4 min-h-[72px] text-sm leading-6 text-vault-muted">{offer.description}</p>
+      <p className="mt-3 line-clamp-2 min-w-0 break-words text-sm leading-6 text-[var(--app-muted)]">{offer.description}</p>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <CardMetric label="Price" value={offer.price} />
-        <CardMetric label="Commission" value={`${offer.commissionPercent}%`} />
-        <CardMetric label="Est. Earnings" value={offer.estimatedEarnings} />
+      <div className="mt-4 flex min-w-0 flex-row flex-wrap gap-2">
+        <OfferBadge label="Price" value={offer.price} />
+        <OfferBadge label="Commission" value={`${offer.commissionPercent}%`} />
+        <OfferBadge label="Difficulty" value={offer.difficulty} />
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <ActionButton icon={Target} label="View Blueprint" onClick={onViewBlueprint} variant="primary" />
-        <ActionButton
-          icon={copied ? Check : Copy}
-          label={copied ? "Copied ✅" : "Copy My Affiliate Link"}
-          onClick={onCopyLink}
-          success={copied}
-        />
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <Button icon={Target} label="View Blueprint" onClick={onBlueprint} variant="primary" />
+        <Button icon={copied ? Check : Copy} label={copied ? "Copied" : "Copy Link"} onClick={onCopy} />
       </div>
     </motion.article>
   );
 }
 
-type BlueprintModalProps = {
+function OfferBadge({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex min-w-0 max-w-full flex-row items-center gap-1 rounded-full border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-1 text-xs leading-5">
+      <span className="shrink-0 font-semibold text-[var(--app-subtle)]">{label}:</span>
+      <span className="min-w-0 truncate font-bold text-[var(--app-text)]">{value}</span>
+    </span>
+  );
+}
+
+function BlueprintModal({
+  offer,
+  activeTab,
+  copiedId,
+  onTab,
+  onClose,
+  onCopy,
+}: {
   offer: Offer;
-  copied: boolean;
+  activeTab: BlueprintTab;
+  copiedId: string | null;
+  onTab: (tab: BlueprintTab) => void;
   onClose: () => void;
-  onCopyLink: () => void;
-};
-
-function BlueprintModal({ offer, copied, onClose, onCopyLink }: BlueprintModalProps) {
+  onCopy: (link: string, id: string) => void;
+}) {
+  const tabs: BlueprintTab[] = ["Overview", "Audience", "Content Ideas", "Promotion Strategy", "Resources"];
   return (
-    <motion.div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/82 p-3 backdrop-blur-md"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
+    <motion.div className="fixed inset-0 z-50 grid place-items-center bg-[var(--app-overlay)] p-3 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <motion.section
-        className="glass-panel max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-xl p-5 neon-border sm:p-6"
-        initial={{ y: 42, opacity: 0, scale: 0.98 }}
+        className="app-card max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl p-4 sm:p-6"
+        initial={{ y: 28, opacity: 0, scale: 0.98 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
-        exit={{ y: 28, opacity: 0, scale: 0.98 }}
-        transition={{ type: "spring", stiffness: 185, damping: 23 }}
+        exit={{ y: 18, opacity: 0, scale: 0.98 }}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-vault-gold">Affiliate Blueprint</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-vault-cream">{offer.productName}</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-vault-muted">
-              A focused promotion plan for Learn2Earn members who want to promote this opportunity with clear positioning,
-              practical angles, and a strong affiliate link.
-            </p>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--app-accent-text)]">Affiliate Blueprint</p>
+            <h2 className="mt-2 break-words text-3xl font-bold text-[var(--app-text)]">{offer.productName}</h2>
+            <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-[var(--app-muted)]">{offer.description}</p>
           </div>
-          <button
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-vault-cream/10 text-vault-muted hover:bg-vault-cream/8"
-            onClick={onClose}
-            aria-label="Close blueprint"
-          >
+          <button className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--app-border)] bg-[var(--app-button)] text-[var(--app-text)]" onClick={onClose}>
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-4">
-          <CardMetric label="Price" value={offer.price} />
-          <CardMetric label="Commission" value={`${offer.commissionPercent}% ${offer.commissionType}`} />
-          <CardMetric label="Estimated Earnings" value={offer.estimatedEarnings} />
-          <CardMetric label="Difficulty" value={offer.difficulty} />
+        <div className="mt-5 flex flex-wrap gap-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              className={`min-h-10 rounded-xl border px-3 py-2 text-sm font-semibold ${
+                activeTab === tab ? "border-[var(--app-border-strong)] bg-[var(--app-active)] text-[var(--app-text)]" : "border-[var(--app-border)] bg-[var(--app-button)] text-[var(--app-muted)]"
+              }`}
+              onClick={() => onTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          <BlueprintBlock title="Overview" icon={Crown}>
-            <p>{offer.productName} is a curated affiliate opportunity inside the Learn2Earn Academy vault.</p>
-          </BlueprintBlock>
-          <BlueprintBlock title="Product Description" icon={WalletCards}>
-            <p>{offer.description}</p>
-          </BlueprintBlock>
-          <BlueprintBlock title="Commission Breakdown" icon={BadgeDollarSign}>
-            <p>
-              {offer.commissionPercent}% {offer.commissionType.toLowerCase()} commission on {offer.price}. Estimated earnings are{" "}
-              {offer.estimatedEarnings}.
-            </p>
-          </BlueprintBlock>
-          <BlueprintBlock title="Target Audience" icon={Users}>
-            <PillList items={offer.targetAudience} />
-          </BlueprintBlock>
-          <BlueprintBlock title="Best Platforms" icon={BarChart3}>
-            <PillList items={offer.bestPlatforms} />
-          </BlueprintBlock>
-          <BlueprintBlock title="Example Hooks" icon={Flame}>
-            <BulletList items={offer.exampleHooks} />
-          </BlueprintBlock>
-          <div className="lg:col-span-2">
-            <BlueprintBlock title="Promotion Notes" icon={Sparkles}>
-              <p>{offer.promotionNotes}</p>
-            </BlueprintBlock>
-          </div>
+        <div className="mt-5">
+          {activeTab === "Overview" && <BlueprintOverview offer={offer} />}
+          {activeTab === "Audience" && <BlueprintAudience offer={offer} />}
+          {activeTab === "Content Ideas" && <BlueprintContent offer={offer} />}
+          {activeTab === "Promotion Strategy" && <BlueprintStrategy offer={offer} />}
+          {activeTab === "Resources" && <BlueprintResources offer={offer} copiedId={copiedId} onCopy={onCopy} />}
         </div>
 
-        <motion.button
-          className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-vault-magenta via-vault-rose to-vault-gold px-5 text-sm font-semibold text-vault-black shadow-glow"
-          onClick={onCopyLink}
-          whileHover={{ y: -2 }}
-          whileTap={{ scale: 0.97 }}
-          animate={{
-            boxShadow: [
-              "0 0 18px rgba(255,47,179,0.18)",
-              "0 0 42px rgba(255,47,179,0.36)",
-              "0 0 18px rgba(255,47,179,0.18)",
-            ],
-          }}
-          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-        >
-        {copied ? <Check className="h-5 w-5" /> : <Link2 className="h-5 w-5" />}
-          {copied ? "Copied ✅" : "Copy My Affiliate Link"}
-        </motion.button>
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <Button icon={copiedId === offer.id ? Check : Copy} label={copiedId === offer.id ? "Copied" : "Copy Affiliate Link"} onClick={() => onCopy(offer.affiliateLink, offer.id)} variant="primary" />
+          <Button icon={ExternalLink} label="Open Affiliate Link" onClick={() => window.open(offer.affiliateLink, "_blank", "noopener,noreferrer")} />
+        </div>
       </motion.section>
     </motion.div>
   );
 }
 
-type BlueprintBlockProps = {
-  title: string;
-  icon: LucideIcon;
-  children: React.ReactNode;
-};
-
-function BlueprintBlock({ title, icon: Icon, children }: BlueprintBlockProps) {
+function BlueprintOverview({ offer }: { offer: Offer }) {
   return (
-    <div className="rounded-xl border border-vault-cream/10 bg-black/35 p-4 premium-ring">
-      <div className="flex items-center gap-2 text-sm font-semibold text-vault-gold">
-        <Icon className="h-4 w-4" />
-        {title}
-      </div>
-      <div className="mt-3 text-sm leading-6 text-vault-muted">{children}</div>
-    </div>
-  );
-}
-
-function CardMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-vault-cream/10 bg-black/35 p-3">
-      <div className="text-[10px] uppercase tracking-[0.16em] text-vault-muted">{label}</div>
-      <div className="mt-1 text-sm font-semibold leading-5 text-vault-cream">{value}</div>
-    </div>
-  );
-}
-
-function EarningsDashboard({ onMenuClick }: { onMenuClick: () => void }) {
-  const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
-  const [customersByOffer, setCustomersByOffer] = useState<Record<string, number>>({
-    toolsuite: 0,
-    "deal-soldier": 0,
-  });
-
-  const rows = offers.map((offer) => {
-    const customers = customersByOffer[offer.id] ?? 0;
-    const monthly = customers * offer.monthlyCommission;
-    const yearly = monthly * 12;
-
-    return { offer, customers, monthly, yearly };
-  });
-
-  const totalMonthly = rows.reduce((total, row) => total + row.monthly, 0);
-  const totalYearly = totalMonthly * 12;
-  const totalCustomers = rows.reduce((total, row) => total + row.customers, 0);
-  const bestRow = rows.reduce((best, row) => (row.monthly > best.monthly ? row : best), rows[0]);
-  const balance = period === "monthly" ? totalMonthly : totalYearly;
-
-  const updateCustomers = (offerId: string, value: number) => {
-    setCustomersByOffer((current) => ({
-      ...current,
-      [offerId]: Number.isFinite(value) && value >= 0 ? value : 0,
-    }));
-  };
-
-  return (
-    <motion.div
-      className="flex flex-col gap-4"
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-    >
-      <section className="glass-panel relative overflow-hidden rounded-xl p-5 sm:p-7">
-        <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,47,179,0.14),transparent_46%,rgba(214,168,79,0.14))]" />
-        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <button
-                className="grid h-10 w-10 place-items-center rounded-lg border border-vault-magenta/25 bg-vault-cream/5 text-vault-cream lg:hidden"
-                onClick={onMenuClick}
-                aria-label="Open sidebar"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              <span className="inline-flex items-center gap-2 rounded-full border border-vault-gold/25 bg-vault-gold/10 px-3 py-1 text-xs uppercase tracking-[0.22em] text-vault-gold">
-                <WalletCards className="h-3.5 w-3.5" />
-                Affiliate Bank Desk
-              </span>
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Panel title="What is it?" icon={FileText}>
+        <p>{offer.description}</p>
+      </Panel>
+      <Panel title="Why promote it?" icon={TrendingUp}>
+        <p>{offer.promotionNotes}</p>
+      </Panel>
+      <Panel title="Commission details" icon={BadgeDollarSign}>
+        <p>
+          {offer.commissionPercent}% {offer.commissionType.toLowerCase()} commission. Estimated payout: {offer.estimatedEarnings}.
+        </p>
+      </Panel>
+      <Panel title="Proof points" icon={BarChart3}>
+        <PillList items={[offer.category, offer.difficulty, offer.rating ? `${offer.rating.toFixed(1)} rating` : "Vetted", offer.members ? `${offer.members} members` : offer.price]} />
+      </Panel>
+      {offer.plans && (
+        <div className="lg:col-span-2">
+          <Panel title="Plans" icon={Library}>
+            <div className="grid gap-3 md:grid-cols-3">
+              {offer.plans.map((plan) => (
+                <div key={plan.id} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4">
+                  <p className="font-bold text-[var(--app-text)]">{plan.name}</p>
+                  <p className="mt-2 text-sm text-[var(--app-muted)]">{plan.price}</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--app-accent-text)]">{plan.commission}</p>
+                </div>
+              ))}
             </div>
-            <h1 className="mt-5 text-4xl font-semibold tracking-tight text-vault-cream sm:text-5xl">Earnings Calculator</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-vault-muted sm:text-base">
-              Estimate your potential affiliate income across all opportunities.
-            </p>
-          </div>
+          </Panel>
+        </div>
+      )}
+    </div>
+  );
+}
 
-          <div className="flex rounded-xl border border-vault-cream/10 bg-black/45 p-1">
-            {(["monthly", "yearly"] as const).map((item) => (
-              <button
-                key={item}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold capitalize transition ${
-                  period === item ? "bg-vault-magenta/20 text-vault-cream shadow-glow" : "text-vault-muted hover:text-vault-cream"
-                }`}
-                onClick={() => setPeriod(item)}
-              >
-                {item}
-              </button>
+function BlueprintAudience({ offer }: { offer: Offer }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <Panel title="Who should buy" icon={Users}>
+        <PillList items={offer.targetAudience} />
+      </Panel>
+      <Panel title="Ideal customer" icon={Target}>
+        <p>People already searching for a practical solution in {offer.category.toLowerCase()} with enough intent to pay monthly.</p>
+      </Panel>
+      <Panel title="Pain points" icon={Sparkles}>
+        <BulletList items={["Too many random tips", "No clear workflow", "No trusted community", "Hard to compare good offers"]} />
+      </Panel>
+    </div>
+  );
+}
+
+function BlueprintContent({ offer }: { offer: Offer }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Panel title="Hooks" icon={Wand2}>
+        <BulletList items={offer.exampleHooks} />
+      </Panel>
+      <Panel title="TikTok ideas" icon={Sparkles}>
+        <BulletList items={offer.contentIdeas ?? ["Problem-solution demo", "Before/after workflow", "Beginner mistake breakdown", "Offer comparison"]} />
+      </Panel>
+      <Panel title="YouTube ideas" icon={FileText}>
+        <BulletList items={["Full review", "Beginner guide", "Case study", "Alternatives comparison"]} />
+      </Panel>
+      <Panel title="Twitter and Reddit ideas" icon={BookOpen}>
+        <BulletList items={["Thread breakdown", "Checklist post", "Community answer", "Resource roundup"]} />
+      </Panel>
+    </div>
+  );
+}
+
+function BlueprintStrategy({ offer }: { offer: Offer }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Panel title="Organic" icon={TrendingUp}>
+        <BulletList items={offer.promotionAngles ?? ["Lead with the buyer problem", "Show the workflow", "Mention recurring value", "Avoid unrealistic claims"]} />
+      </Panel>
+      <Panel title="Short-form" icon={Sparkles}>
+        <BulletList items={["Hook in first 2 seconds", "Show proof or demo", "Use simple CTA", "Pin affiliate comment where allowed"]} />
+      </Panel>
+      <Panel title="Community" icon={Users}>
+        <BulletList items={["Answer questions", "Share useful checklists", "Avoid spam posting", "Disclose affiliate relationship where required"]} />
+      </Panel>
+      <Panel title="Email" icon={FileText}>
+        <BulletList items={["Problem email", "Tool breakdown", "Case study", "Final reminder"]} />
+      </Panel>
+    </div>
+  );
+}
+
+function BlueprintResources({ offer, copiedId, onCopy }: { offer: Offer; copiedId: string | null; onCopy: (link: string, id: string) => void }) {
+  const resources = ["Official Website", "Affiliate Link", "Terms", "Assets"];
+  return (
+    <div className="space-y-4">
+      <Panel title="Resources" icon={Library}>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {resources.map((resource) => (
+            <div key={resource} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4">
+              <p className="font-semibold text-[var(--app-text)]">{resource}</p>
+              <p className="mt-2 text-sm text-[var(--app-muted)]">Use inside your Whop creator workflow.</p>
+            </div>
+          ))}
+        </div>
+      </Panel>
+      {offer.plans && (
+        <Panel title="Plan Links" icon={ExternalLink}>
+          <div className="grid gap-3 md:grid-cols-3">
+            {offer.plans.map((plan) => (
+              <div key={plan.id} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4">
+                <p className="font-bold text-[var(--app-text)]">{plan.name}</p>
+                <p className="mt-1 text-sm text-[var(--app-muted)]">{plan.price}</p>
+                <div className="mt-3 grid gap-2">
+                  <Button icon={copiedId === plan.id ? Check : Copy} label={copiedId === plan.id ? "Copied" : "Copy Link"} onClick={() => onCopy(plan.affiliateLink, plan.id)} />
+                  <Button icon={ExternalLink} label="Open Link" onClick={() => window.open(plan.affiliateLink, "_blank", "noopener,noreferrer")} />
+                </div>
+              </div>
             ))}
           </div>
-        </div>
-      </section>
+        </Panel>
+      )}
+    </div>
+  );
+}
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <motion.div
-          className="glass-panel relative overflow-hidden rounded-xl border-vault-magenta/30 p-6 neon-border"
-          animate={{
-            boxShadow: [
-              "0 0 24px rgba(255,47,179,0.12)",
-              "0 0 52px rgba(214,168,79,0.18)",
-              "0 0 24px rgba(255,47,179,0.12)",
-            ],
-          }}
-          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <motion.div
-            className="absolute right-6 top-6 grid h-14 w-14 place-items-center rounded-full border border-vault-gold/25 bg-vault-gold/12 text-2xl shadow-gold"
-            animate={{ y: [0, -8, 0], rotate: [0, 8, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          >
-            💰
-          </motion.div>
-          <p className="text-xs uppercase tracking-[0.24em] text-vault-gold">Estimated Bank Balance</p>
-          <motion.div
-            key={`${period}-${balance}`}
-            className="mt-5 max-w-full break-words text-5xl font-black tracking-tight text-vault-gold sm:text-7xl"
-            initial={{ y: 16, opacity: 0, filter: "blur(6px)" }}
-            animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
-          >
-            {formatCurrency(balance)}
-          </motion.div>
-          <p className="mt-3 text-sm text-vault-muted">
-            Showing projected {period === "monthly" ? "monthly" : "yearly"} affiliate earnings.
-          </p>
-        </motion.div>
-
-        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-          <DashboardMetric label="Total Monthly Earnings" value={formatCurrency(totalMonthly)} />
-          <DashboardMetric label="Total Yearly Earnings" value={formatCurrency(totalYearly)} />
-          <DashboardMetric label="Total Customers Referred" value={totalCustomers.toString()} />
-          <DashboardMetric label="Best Earning Offer" value={bestRow.monthly > 0 ? bestRow.offer.productName : "None yet"} />
-        </div>
-      </section>
-
-      <section className="glass-panel rounded-xl p-4 sm:p-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-vault-gold">Offer Calculators</p>
-            <h2 className="mt-1 text-xl font-semibold text-vault-cream">Commission Rows</h2>
+function AiToolsPage() {
+  return (
+    <section className="app-card rounded-3xl p-5">
+      <SectionTitle eyebrow="AI Tools Vault" title="Creator tools for faster affiliate execution" description="Research, write, design, edit, clip, and publish without leaving your creator workflow." />
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {aiTools.map((tool) => (
+          <div key={tool.name} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+            <h3 className="text-lg font-bold text-[var(--app-text)]">{tool.name}</h3>
+            <p className="mt-2 min-h-12 text-sm leading-6 text-[var(--app-muted)]">{tool.description}</p>
+            <Metric label="Use case" value={tool.useCase} />
+            <div className="mt-4">
+              <Button icon={ExternalLink} label="Open Tool" onClick={() => window.open(tool.url, "_blank", "noopener,noreferrer")} />
+            </div>
           </div>
-        </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
-        <div className="mt-5 grid gap-4">
-          {rows.map((row) => (
-            <CalculatorOfferRow key={row.offer.id} row={row} onChange={updateCustomers} />
+function HookGeneratorPage({ onCopyAll, copied }: { onCopyAll: (text: string) => void; copied: boolean }) {
+  const [category, setCategory] = useState("Trading");
+  const [count, setCount] = useState(5);
+  const hooks = useMemo(() => generateHooks(category, count), [category, count]);
+  return (
+    <section className="app-card rounded-3xl p-5">
+      <SectionTitle eyebrow="Hook Generator" title="Generate fast hooks for affiliate content" description="Pick a vertical, choose a quantity, and copy a ready-to-edit batch." />
+      <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
+        <select className="h-11 rounded-xl border border-[var(--app-border)] bg-[var(--app-input)] px-3 text-[var(--app-text)]" value={category} onChange={(event) => setCategory(event.target.value)}>
+          {["Trading", "Software", "AI", "Reselling", "Tickets", "Editing"].map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+        <div className="flex flex-wrap gap-2">
+          {[5, 10, 20].map((item) => (
+            <button
+              key={item}
+              className={`min-h-11 rounded-xl border px-4 text-sm font-semibold ${count === item ? "border-[var(--app-border-strong)] bg-[var(--app-active)] text-[var(--app-text)]" : "border-[var(--app-border)] bg-[var(--app-button)] text-[var(--app-muted)]"}`}
+              onClick={() => setCount(item)}
+            >
+              {item} hooks
+            </button>
+          ))}
+        </div>
+        <Button icon={copied ? Check : Copy} label={copied ? "Copied" : "Copy All"} onClick={() => onCopyAll(hooks.join("\n"))} variant="primary" />
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {hooks.map((hook, index) => (
+          <div key={hook} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+            <p className="text-xs font-semibold text-[var(--app-subtle)]">Hook {index + 1}</p>
+            <p className="mt-2 break-words text-sm font-semibold text-[var(--app-text)]">{hook}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EarningsCalculator() {
+  const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
+  const [customers, setCustomers] = useState<Record<string, number>>(() => Object.fromEntries(offers.map((offer) => [offer.id, 0])));
+  const [plans, setPlans] = useState<Record<string, string>>({ skylit: "skylit-community" });
+  const rows = offers.map((offer) => {
+    const selectedPlan = offer.plans?.find((plan) => plan.id === plans[offer.id]) ?? offer.plans?.[0];
+    const commission = selectedPlan ? selectedPlan.monthlyPrice * (offer.commissionPercent / 100) : offer.monthlyCommission;
+    const count = customers[offer.id] ?? 0;
+    return { offer, selectedPlan, commission, count, monthly: commission * count, yearly: commission * count * 12 };
+  });
+  const totalMonthly = rows.reduce((sum, row) => sum + row.monthly, 0);
+  const totalYearly = totalMonthly * 12;
+  const totalCustomers = rows.reduce((sum, row) => sum + row.count, 0);
+  return (
+    <div className="space-y-4">
+      <section className="app-card rounded-3xl p-5">
+        <SectionTitle eyebrow="Earnings Calculator" title="Forecast affiliate revenue by offer" description="Select plan levels, enter referrals, and estimate monthly or yearly recurring payouts." />
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <Stat label="Monthly Earnings" value={formatCurrency(totalMonthly)} icon={BadgeDollarSign} />
+          <Stat label="Yearly Earnings" value={formatCurrency(totalYearly)} icon={TrendingUp} />
+          <Stat label="Customers Referred" value={totalCustomers.toString()} icon={Users} />
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {(["monthly", "yearly"] as const).map((item) => (
+            <button
+              key={item}
+              className={`min-h-10 rounded-xl border px-4 text-sm font-semibold capitalize ${period === item ? "border-[var(--app-border-strong)] bg-[var(--app-active)] text-[var(--app-text)]" : "border-[var(--app-border)] bg-[var(--app-button)] text-[var(--app-muted)]"}`}
+              onClick={() => setPeriod(item)}
+            >
+              {item}
+            </button>
           ))}
         </div>
       </section>
-    </motion.div>
-  );
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-function DashboardMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <motion.div
-      className="glass-panel rounded-xl p-4 premium-ring"
-      initial={{ y: 16, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      whileHover={{ y: -4 }}
-      transition={{ type: "spring", stiffness: 230, damping: 24 }}
-    >
-      <p className="text-xs uppercase tracking-[0.18em] text-vault-muted">{label}</p>
-      <motion.p
-        key={value}
-        className="mt-2 break-words text-2xl font-semibold text-vault-gold"
-        initial={{ y: 8, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.25 }}
-      >
-        {value}
-      </motion.p>
-    </motion.div>
-  );
-}
-
-type CalculatorRow = {
-  offer: Offer;
-  customers: number;
-  monthly: number;
-  yearly: number;
-};
-
-function CalculatorOfferRow({ row, onChange }: { row: CalculatorRow; onChange: (offerId: string, value: number) => void }) {
-  return (
-    <motion.article
-      className="grid gap-4 rounded-xl border border-vault-magenta/20 bg-black/35 p-4 premium-ring lg:grid-cols-[1.2fr_1fr_1fr_1fr_1fr]"
-      initial={{ y: 18, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      whileHover={{ y: -4 }}
-      transition={{ type: "spring", stiffness: 230, damping: 24 }}
-    >
-      <div>
-        <p className="text-xs uppercase tracking-[0.18em] text-vault-gold">{row.offer.commissionType}</p>
-        <h3 className="mt-2 text-xl font-semibold text-vault-cream">{row.offer.productName}</h3>
-      </div>
-
-      <div>
-        <p className="text-xs uppercase tracking-[0.16em] text-vault-muted">Commission per customer</p>
-        <p className="mt-2 text-lg font-semibold text-vault-gold">{formatCurrency(row.offer.monthlyCommission)}</p>
-      </div>
-
-      <div>
-        <label className="text-xs uppercase tracking-[0.16em] text-vault-muted" htmlFor={`customers-${row.offer.id}`}>
-          Customers referred
-        </label>
-        <input
-          id={`customers-${row.offer.id}`}
-          className="mt-2 h-11 w-full rounded-lg border border-vault-cream/10 bg-black/60 px-3 text-sm font-semibold text-vault-cream outline-none transition focus:border-vault-magenta/70 focus:shadow-glow"
-          type="number"
-          min="0"
-          value={row.customers}
-          onChange={(event) => onChange(row.offer.id, Number(event.target.value))}
-        />
-      </div>
-
-      <BankResult label="Monthly earnings" value={formatCurrency(row.monthly)} />
-      <BankResult label="Yearly earnings" value={formatCurrency(row.yearly)} />
-    </motion.article>
-  );
-}
-
-function BankResult({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-vault-gold/20 bg-vault-gold/[0.055] p-3">
-      <p className="text-xs uppercase tracking-[0.16em] text-vault-muted">{label}</p>
-      <motion.p
-        key={value}
-        className="mt-2 text-lg font-semibold text-vault-gold"
-        initial={{ y: 8, opacity: 0, filter: "blur(4px)" }}
-        animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
-        transition={{ duration: 0.28, ease: "easeOut" }}
-      >
-        {value}
-      </motion.p>
+      <section className="grid gap-3">
+        {rows.map((row) => (
+          <div key={row.offer.id} className="app-card grid min-w-0 gap-3 rounded-2xl p-4 lg:grid-cols-3 xl:grid-cols-[1.2fr_minmax(220px,1.2fr)_1fr_1fr_1fr] xl:items-center">
+            <div className="min-w-0">
+              <p className="break-words font-bold text-[var(--app-text)]">{row.offer.productName}</p>
+              <p className="mt-1 text-sm text-[var(--app-muted)]">{row.offer.category}</p>
+            </div>
+            {row.offer.plans ? (
+              <select
+                className="h-11 min-w-0 rounded-xl border border-[var(--app-border)] bg-[var(--app-input)] px-3 text-sm font-semibold text-[var(--app-text)]"
+                value={row.selectedPlan?.id}
+                onChange={(event) => setPlans((current) => ({ ...current, [row.offer.id]: event.target.value }))}
+              >
+                {row.offer.plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Metric label="Plan" value="Standard" />
+            )}
+            <label className="min-w-0">
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)]">Customers</span>
+              <input
+                className="mt-1 h-11 w-full rounded-xl border border-[var(--app-border)] bg-[var(--app-input)] px-3 text-[var(--app-text)]"
+                type="number"
+                min="0"
+                value={row.count}
+                onChange={(event) => setCustomers((current) => ({ ...current, [row.offer.id]: Math.max(0, Number(event.target.value) || 0) }))}
+              />
+            </label>
+            <Metric label="Per Customer" value={formatCurrency(row.commission)} />
+            <Metric label={period === "monthly" ? "Monthly" : "Yearly"} value={formatCurrency(period === "monthly" ? row.monthly : row.yearly)} />
+          </div>
+        ))}
+      </section>
     </div>
   );
 }
 
-function EarningResult({ label, value }: { label: string; value: string }) {
+function UtilityPanel({ page, onCalculator, onOpportunities }: { page: Page; onCalculator: () => void; onOpportunities: () => void }) {
+  const topOffer = offers.reduce((best, offer) => (offer.commissionPercent > best.commissionPercent ? offer : best), offers[0]);
+  const recurringCount = offers.filter((offer) => offer.commissionType === "Recurring").length;
   return (
-    <div className="rounded-lg border border-vault-gold/20 bg-vault-gold/[0.06] p-3 text-right">
-      <div className="text-[10px] uppercase tracking-[0.16em] text-vault-muted">{label}</div>
-      <motion.div
-        key={value}
-        className="mt-1 text-xl font-semibold text-vault-gold"
-        initial={{ y: 8, opacity: 0, filter: "blur(4px)" }}
-        animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
-        transition={{ duration: 0.28, ease: "easeOut" }}
-      >
-        {value}
-      </motion.div>
+    <aside className="sticky top-0 hidden h-screen w-[320px] shrink-0 border-l border-[var(--app-border)] bg-[var(--app-sidebar)] p-4 xl:block">
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-subtle)]">Workspace</p>
+          <h3 className="mt-2 break-words text-lg font-bold text-[var(--app-text)]">Creator control room</h3>
+          <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">Monitor offers, copy links, and plan content from one Whop-ready interface.</p>
+        </div>
+
+        <div className="grid gap-3">
+          <Metric label="Current page" value={page.replace("-", " ")} />
+          <Metric label="Recurring offers" value={recurringCount.toString()} />
+          <Metric label="Highest commission" value={`${topOffer.productName} / ${topOffer.commissionPercent}%`} />
+        </div>
+
+        <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+          <p className="text-sm font-bold text-[var(--app-text)]">Quick actions</p>
+          <div className="mt-3 grid gap-2">
+            <Button icon={Library} label="Browse Opportunities" onClick={onOpportunities} />
+            <Button icon={Calculator} label="Open Calculator" onClick={onCalculator} variant="primary" />
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+          <p className="text-sm font-bold text-[var(--app-text)]">Creator checklist</p>
+          <BulletList items={["Pick one offer", "Open blueprint", "Generate hooks", "Copy link", "Publish short-form test"]} />
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function SectionTitle({ eyebrow, title, description }: { eyebrow: string; title: string; description?: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.16em] text-[var(--app-accent-text)]">{eyebrow}</p>
+      <h2 className="mt-1 break-words text-2xl font-bold text-[var(--app-text)] sm:text-3xl">{title}</h2>
+      {description && <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-[var(--app-muted)]">{description}</p>}
+    </div>
+  );
+}
+
+function Stat({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
+  return (
+    <div className="app-card min-w-0 rounded-2xl p-4">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="break-words text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)]">{label}</p>
+          <p className="mt-2 break-words text-2xl font-bold text-[var(--app-text)]">{value}</p>
+        </div>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--app-border)] bg-[var(--app-active)] text-[var(--app-accent-text)]">
+          <Icon className="h-5 w-5" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function MobileLabel({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 xl:block">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)] xl:hidden">{label}</p>
+      <p className="break-words text-sm font-semibold text-[var(--app-text)]">{value}</p>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-3">
+      <p className="break-words text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)]">{label}</p>
+      <p className="mt-1 break-words text-sm font-bold text-[var(--app-text)]">{value}</p>
+    </div>
+  );
+}
+
+function Panel({ title, icon: Icon, children }: { title: string; icon: LucideIcon; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+      <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-[var(--app-text)]">
+        <Icon className="h-4 w-4 shrink-0 text-[var(--app-accent-text)]" />
+        <span className="break-words">{title}</span>
+      </div>
+      <div className="mt-3 break-words text-sm leading-6 text-[var(--app-muted)]">{children}</div>
     </div>
   );
 }
@@ -1064,7 +1226,7 @@ function PillList({ items }: { items: string[] }) {
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => (
-        <span key={item} className="rounded-full border border-vault-gold/18 bg-vault-gold/8 px-3 py-1 text-xs text-vault-gold">
+        <span key={item} className="rounded-full border border-[var(--app-border)] bg-[var(--app-button)] px-3 py-1 text-xs font-semibold text-[var(--app-muted)]">
           {item}
         </span>
       ))}
@@ -1076,67 +1238,71 @@ function BulletList({ items }: { items: string[] }) {
   return (
     <ul className="space-y-2">
       {items.map((item) => (
-        <li key={item} className="flex gap-2">
-          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-vault-magenta shadow-glow" />
-          <span>{item}</span>
+        <li key={item} className="flex min-w-0 gap-2">
+          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--app-accent)]" />
+          <span className="min-w-0 break-words">{item}</span>
         </li>
       ))}
     </ul>
   );
 }
 
-type ActionButtonProps = {
+function Button({
+  icon: Icon,
+  label,
+  onClick,
+  variant = "secondary",
+}: {
   icon: LucideIcon;
   label: string;
   onClick: () => void;
   variant?: "primary" | "secondary";
-  success?: boolean;
-};
-
-function ActionButton({ icon: Icon, label, onClick, variant = "secondary", success = false }: ActionButtonProps) {
+}) {
   return (
     <motion.button
-      className={`flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold transition ${
-        success
-          ? "border border-vault-gold/45 bg-vault-gold/15 text-vault-gold shadow-gold"
-          : 
+      className={`flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition ${
         variant === "primary"
-          ? "bg-gradient-to-r from-vault-magenta via-vault-rose to-vault-gold text-vault-black shadow-glow"
-          : "border border-vault-cream/10 bg-black/35 text-vault-cream hover:border-vault-magenta/45"
+          ? "border-[var(--app-accent)] bg-[var(--app-accent)] text-white shadow-[var(--app-glow)] hover:brightness-110"
+          : "border-[var(--app-border-strong)] bg-[var(--app-button)] text-[var(--app-text)] hover:bg-[var(--app-hover)]"
       }`}
       onClick={onClick}
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.96 }}
-      animate={success ? { scale: [1, 1.04, 1], boxShadow: "0 0 34px rgba(214,168,79,0.28)" } : { scale: 1 }}
-      transition={{ duration: 0.35 }}
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 0.98 }}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      <span className="leading-tight">{label}</span>
+      <span className="min-w-0 whitespace-normal break-words leading-tight">{label}</span>
     </motion.button>
   );
 }
 
-type SidebarButtonProps = {
-  label: string;
-  icon: LucideIcon;
-  active: boolean;
-  onClick: () => void;
-};
+function generateHooks(category: string, count: number) {
+  const base = [
+    `Most people in ${category} are missing this simple angle.`,
+    `If you are trying to grow with ${category}, start here.`,
+    `This is the ${category} mistake I would avoid as a beginner.`,
+    `I tested a smarter way to approach ${category}.`,
+    `Before you pay for another tool, watch this ${category} breakdown.`,
+    `The fastest way to explain ${category} to a beginner.`,
+    `Here is the difference between random advice and a real ${category} system.`,
+    `This ${category} workflow can save you hours every week.`,
+    `If I had to start ${category} from zero, I would do this.`,
+    `Nobody talks about this part of ${category}.`,
+    `This is how creators can turn ${category} into content.`,
+    `Stop overcomplicating ${category}. Use this checklist.`,
+    `The hidden cost of doing ${category} without a process.`,
+    `This ${category} offer is not for everyone, but it solves a real problem.`,
+    `Here is a clean way to compare ${category} tools.`,
+    `I would not promote a ${category} offer without checking this first.`,
+    `A beginner-friendly way to understand ${category}.`,
+    `This is what buyers actually want from ${category}.`,
+    `The ${category} content angle that gets people curious.`,
+    `Save this before you choose your next ${category} platform.`,
+  ];
+  return base.slice(0, count);
+}
 
-function SidebarButton({ label, icon: Icon, active, onClick }: SidebarButtonProps) {
-  return (
-    <button
-      className={`flex h-12 w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition ${
-        active
-          ? "border border-vault-magenta/50 bg-vault-magenta/16 text-vault-cream shadow-glow"
-          : "border border-transparent text-vault-muted hover:border-vault-gold/20 hover:bg-vault-cream/[0.045] hover:text-vault-cream"
-      }`}
-      onClick={onClick}
-    >
-      <Icon className="h-5 w-5 shrink-0" />
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-    </button>
-  );
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 }
 
 export default App;
