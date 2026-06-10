@@ -30,10 +30,10 @@
   @media (prefers-color-scheme: dark) {
     :root {
       color-scheme: dark;
-      --app-bg: var(--whop-background, var(--whop-color-background, #050505));
-      --app-sidebar: #0a0a0a;
-      --app-surface: var(--whop-card-background, var(--whop-color-surface, #111111));
-      --app-surface-muted: #0a0a0a;
+      --app-bg: var(--whop-background, var(--whop-color-background, #030303));
+      --app-sidebar: #070707;
+      --app-surface: var(--whop-card-background, var(--whop-color-surface, #101010));
+      --app-surface-muted: #0b0b0b;
       --app-text: var(--whop-foreground, var(--whop-color-text, #f9fafb));
       --app-muted: var(--whop-muted-foreground, var(--whop-color-text-muted, #b7bfce));
       --app-subtle: #7f8797;
@@ -54,10 +54,10 @@
 
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --app-bg: var(--whop-background, var(--whop-color-background, #050505));
-    --app-sidebar: #0a0a0a;
-    --app-surface: var(--whop-card-background, var(--whop-color-surface, #111111));
-    --app-surface-muted: #0a0a0a;
+    --app-bg: var(--whop-background, var(--whop-color-background, #030303));
+    --app-sidebar: #070707;
+    --app-surface: var(--whop-card-background, var(--whop-color-surface, #101010));
+    --app-surface-muted: #0b0b0b;
     --app-text: var(--whop-foreground, var(--whop-color-text, #f9fafb));
     --app-muted: var(--whop-muted-foreground, var(--whop-color-text-muted, #b7bfce));
     --app-subtle: #7f8797;
@@ -110,6 +110,11 @@
   input::placeholder {
     color: var(--app-subtle);
   }
+
+  ::selection {
+    color: #ffffff;
+    background: rgba(220, 20, 60, 0.7);
+  }
 }
 
 @layer components {
@@ -122,12 +127,5 @@
     background:
       radial-gradient(circle at 18% 8%, rgba(220, 20, 60, 0.1), transparent 28rem),
       radial-gradient(circle at 88% 12%, rgba(220, 20, 60, 0.06), transparent 24rem);
-  }
-
-  .app-card {
-    border: 1px solid var(--app-border);
-    background: var(--app-surface);
-    box-shadow: var(--app-shadow);
-    backdrop-filter: blur(18px);
   }
 }
