@@ -368,7 +368,7 @@ const navGroups: Array<{ title: string; items: Array<{ label: string; page: Page
   {
     title: "Personal",
     items: [
-      { label: "Level System", page: "level-system", icon: Trophy },
+      { label: "Personal Progress", page: "level-system", icon: Trophy },
       { label: "Earnings Calculator", page: "calculator", icon: Calculator },
     ],
   },
@@ -958,7 +958,7 @@ function DashboardPage({
 
       <section className="app-card rounded-3xl p-4 sm:p-5">
         <SectionTitle eyebrow="Featured Opportunities" title="Start with proven creator-friendly offers" />
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           {featured.map((offer) => (
             <OfferCard key={offer.id} offer={offer} copied={copiedId === offer.id} onBlueprint={() => onBlueprint(offer)} onCopy={() => onCopy(offer.affiliateLink, offer.id)} onOpenLink={() => onOpenLink(offer)} />
           ))}
@@ -1069,64 +1069,27 @@ function OpportunitiesPage({
         </div>
       </section>
 
-      <section className="app-card overflow-visible rounded-3xl">
-        <div className="hidden grid-cols-[1.35fr_.7fr_.7fr_1fr_.8fr_.9fr_1.2fr] gap-3 border-b border-[var(--app-border)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)] xl:grid">
-          <span>Offer</span>
-          <span>Type</span>
-          <span>Commission</span>
-          <span>Estimated Earnings</span>
-          <span>Difficulty</span>
-          <span>Category</span>
-          <span>Actions</span>
-        </div>
-        <div className="divide-y divide-[var(--app-border)]">
-          {visibleOffers.length ? (
-            visibleOffers.map((offer) => <OfferRow key={offer.id} offer={offer} copied={copiedId === offer.id} onBlueprint={() => onBlueprint(offer)} onCopy={() => onCopy(offer.affiliateLink, offer.id)} onOpenLink={() => onOpenLink(offer)} />)
-          ) : (
-            <div className="p-8 text-center">
-              <p className="text-lg font-semibold text-[var(--app-text)]">No offers found</p>
-              <p className="mt-2 text-sm text-[var(--app-muted)]">Try a broader filter or search term.</p>
-            </div>
-          )}
-        </div>
+      <section className="app-card rounded-3xl p-4 sm:p-5">
+        {visibleOffers.length ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {visibleOffers.map((offer) => (
+              <OfferCard
+                key={offer.id}
+                offer={offer}
+                copied={copiedId === offer.id}
+                onBlueprint={() => onBlueprint(offer)}
+                onCopy={() => onCopy(offer.affiliateLink, offer.id)}
+                onOpenLink={() => onOpenLink(offer)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 text-center">
+            <p className="text-lg font-semibold text-[var(--app-text)]">No offers found</p>
+            <p className="mt-2 text-sm text-[var(--app-muted)]">Try a broader filter or search term.</p>
+          </div>
+        )}
       </section>
-    </div>
-  );
-}
-
-function OfferRow({
-  offer,
-  copied,
-  onBlueprint,
-  onCopy,
-  onOpenLink,
-}: {
-  offer: Offer;
-  copied: boolean;
-  onBlueprint: () => void;
-  onCopy: () => void;
-  onOpenLink: () => void;
-}) {
-  return (
-    <div className="grid min-w-0 gap-3 p-4 xl:grid-cols-[1.35fr_.7fr_.7fr_1fr_.8fr_.9fr_1.2fr] xl:items-center">
-      <div className="flex min-w-0 gap-3">
-        <LogoBadge label={getOfferInitials(offer)} />
-        <div className="min-w-0">
-        <p className="break-words font-semibold text-[var(--app-text)]">{offer.productName}</p>
-        <p className="mt-1 whitespace-normal break-words text-sm leading-6 text-[var(--app-muted)]">{offer.description}</p>
-        {offer.rating && <p className="mt-1 text-xs text-[var(--app-subtle)]">{offer.rating.toFixed(1)} rating{offer.reviews ? ` / ${offer.reviews} reviews` : ""}</p>}
-        </div>
-      </div>
-      <MobileLabel label="Type" value={offer.commissionType} />
-      <MobileLabel label="Commission" value={`${offer.commissionPercent}%`} />
-      <MobileLabel label="Estimated Earnings" value={offer.estimatedEarnings} />
-      <MobileLabel label="Difficulty" value={offer.difficulty} />
-      <MobileLabel label="Category" value={offer.category} />
-      <div className="grid min-w-0 gap-2 sm:grid-cols-3 xl:grid-cols-1">
-        <Button icon={Target} label="View Blueprint" onClick={onBlueprint} variant="primary" />
-        <Button icon={copied ? Check : Copy} label={copied ? "Copied" : "Copy Affiliate Link"} onClick={onCopy} />
-        <Button icon={ExternalLink} label="Open Affiliate Link" onClick={onOpenLink} />
-      </div>
     </div>
   );
 }
@@ -1149,36 +1112,31 @@ function OfferCard({
       <div className="flex min-w-0 items-start gap-3">
         <LogoBadge label={getOfferInitials(offer)} />
         <div className="min-w-0">
-          <p className="whitespace-normal break-words text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-accent-text)]">{offer.category}</p>
+          <p className="whitespace-normal break-words text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-accent-text)]">{getShortCategory(offer.category)}</p>
           <h3 className="mt-2 whitespace-normal break-words text-xl font-bold text-[var(--app-text)]">{offer.productName}</h3>
           {offer.rating && <p className="mt-1 whitespace-normal break-words text-xs text-[var(--app-muted)]">{offer.rating.toFixed(1)} rating{offer.reviews ? ` / ${offer.reviews} reviews` : ""}</p>}
         </div>
       </div>
 
-      <p className="mt-3 min-w-0 whitespace-normal break-words text-sm leading-6 text-[var(--app-muted)]">{offer.description}</p>
+      <p className="mt-3 min-w-0 whitespace-normal break-words text-sm leading-6 text-[var(--app-muted)]">{getShortDescription(offer.description)}</p>
 
-      <div className="mt-4 flex min-w-0 flex-row flex-wrap gap-2">
-        <OfferBadge label="Price" value={offer.price} />
-        <OfferBadge label="Commission" value={`${offer.commissionPercent}%`} />
-        <OfferBadge label="Difficulty" value={offer.difficulty} />
+      <div className="mt-4 flex min-w-0 flex-wrap gap-2">
+        <OfferBadge value={`${offer.commissionPercent}% commission`} />
       </div>
 
-      <div className="mt-auto grid gap-2 pt-4 sm:grid-cols-2">
+      <div className="mt-auto grid gap-2 pt-4 sm:grid-cols-3">
         <Button icon={Target} label="View Blueprint" onClick={onBlueprint} variant="primary" />
         <Button icon={copied ? Check : Copy} label={copied ? "Copied" : "Copy Link"} onClick={onCopy} />
-        <div className="sm:col-span-2">
-          <Button icon={ExternalLink} label="Open Affiliate Link" onClick={onOpenLink} />
-        </div>
+        <Button icon={ExternalLink} label="Open Link" onClick={onOpenLink} />
       </div>
     </motion.article>
   );
 }
 
-function OfferBadge({ label, value }: { label: string; value: string }) {
+function OfferBadge({ value }: { value: string }) {
   return (
-    <span className="inline-flex min-w-0 max-w-full flex-row items-center gap-1 rounded-full border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-1 text-xs leading-5">
-      <span className="shrink-0 font-semibold text-[var(--app-subtle)]">{label}:</span>
-      <span className="min-w-0 whitespace-normal break-words font-bold text-[var(--app-text)]">{value}</span>
+    <span className="inline-flex min-w-0 max-w-full rounded-full border border-[var(--app-border-strong)] bg-[var(--app-active)] px-3 py-1 text-xs font-bold leading-5 text-[var(--app-text)]">
+      <span className="min-w-0 whitespace-normal break-words">{value}</span>
     </span>
   );
 }
@@ -1202,6 +1160,16 @@ function getOfferInitials(offer: Offer) {
   return initials[offer.id] ?? offer.productName.split(/\s+/).map((word) => word[0]).join("").slice(0, 2).toUpperCase();
 }
 
+function getShortCategory(category: string) {
+  if (/ai tools/i.test(category)) return "AI Tools";
+  if (/reselling \/ tickets/i.test(category)) return "Tickets";
+  if (/reselling/i.test(category)) return "Reselling";
+  if (/trading/i.test(category)) return "Trading";
+  if (/software/i.test(category)) return "Software";
+  if (/creator tools/i.test(category)) return "Software";
+  return category.split("/")[0].trim();
+}
+
 function getToolInitials(name: string) {
   const initials: Record<string, string> = {
     ChatGPT: "GPT",
@@ -1214,6 +1182,11 @@ function getToolInitials(name: string) {
     Descript: "DS",
   };
   return initials[name] ?? name.slice(0, 2).toUpperCase();
+}
+
+function getShortDescription(description: string) {
+  const maxLength = 150;
+  return description.length > maxLength ? `${description.slice(0, maxLength).trim()}...` : description;
 }
 
 function BlueprintModal({
@@ -1582,9 +1555,9 @@ function LevelSystemPage({
         <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr] xl:items-start">
           <div className="min-w-0">
             <SectionTitle
-              eyebrow="Level System"
-              title="Creator rank progression"
-              description="Earn XP through meaningful creator actions. Each offer, link, resource, and tool can only reward XP once where applicable."
+              eyebrow="Personal Progress"
+              title="Your creator growth dashboard"
+              description="Track your rank, XP, learning time, calculator projections, and completed actions. This progress is private to your browser until a backend is added."
             />
             <div className="mt-5 rounded-3xl border border-[var(--app-border-strong)] bg-[var(--app-active)] p-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1600,14 +1573,17 @@ function LevelSystemPage({
                 </div>
               </div>
               <XpBar value={rankInfo.progress} />
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <Metric label="Total XP" value={`${progress.xp} XP`} />
                 <Metric label="Learning Hours" value={`${hours.toFixed(1)} hrs`} />
-                <Metric label="Next Rank" value={rankInfo.nextRank} />
+                <Metric label="Monthly Earnings" value={formatCurrency(calculatorSummary.monthly)} />
+                <Metric label="Yearly Projection" value={formatCurrency(calculatorSummary.monthly * 12)} />
               </div>
             </div>
           </div>
-          <Button icon={RotateCcw} label="Reset Progress" onClick={onReset} />
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+            <Button icon={RotateCcw} label="Reset Progress" onClick={onReset} />
+          </div>
         </div>
       </section>
 
@@ -1873,15 +1849,6 @@ function Stat({ label, value, icon: Icon }: { label: string; value: string; icon
           <Icon className="h-5 w-5" />
         </span>
       </div>
-    </div>
-  );
-}
-
-function MobileLabel({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 xl:block">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-subtle)] xl:hidden">{label}</p>
-      <p className="break-words text-sm font-semibold text-[var(--app-text)]">{value}</p>
     </div>
   );
 }
